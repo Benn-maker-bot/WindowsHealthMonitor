@@ -1,12 +1,13 @@
 # Windows Health Monitor: plan for version 2.5
 
-Status: **proposed, 29 October 2026.** Nothing in this plan has been built yet.
+Status: **in progress.** Stage 0 (Git) done on 29 October 2026; stages 1 to 6 not started.
 
 ## Where we are now (resume note)
 
 - **Current version:** 2.4.0, in `C:\Scripts\WindowsHealthMonitor\WindowsHealthMonitor.ps1`.
 - **Last real run:** 29 October 2026 at 11:31, in PowerShell 7.6.9. Healthy, result code 0, 2 min 2 s. This is the **known-good baseline**: every later change is compared against it.
-- **Next action:** decide D0 (Git) first, because no code should change before Git protects the project (docs/AI-MIGRATION.md). Stages 1 to 3 need no other decisions.
+- **Git:** in use since 29 October 2026. The baseline commit is `4239d2b`, version 2.4.0 exactly as it ran at 11:31.
+- **Next action:** stage 1, making the script testable. It needs no decisions. D1 to D4 are needed only from stage 4 onwards.
 
 ## At a glance
 
@@ -45,7 +46,7 @@ Never change tool and redesign DISM or SFC behaviour at the same time.
 
 Each decision has one recommended default. Say "accept the defaults" to take them all, or name the one you want to change.
 
-**D0. Git (stage 0).** *Recommended: yes.* Start a local Git repository in `C:\Scripts\WindowsHealthMonitor`, with `Logs\` excluded, and no GitHub yet. Git records every change, so any stage can be undone. It is also one of your learning goals. If `git --version` fails, install Git with `winget install --id Git.Git -e --source winget`.
+**D0. Git (stage 0).** **Decided: yes (29 October 2026).** Start a local Git repository in `C:\Scripts\WindowsHealthMonitor`, with `Logs\` excluded, and no GitHub yet. Git records every change, so any stage can be undone. It is also one of your learning goals. If `git --version` fails, install Git with `winget install --id Git.Git -e --source winget`.
 
 **D1. How the scheduled task gets PowerShell 7 (stage 5).** *Recommended: install PowerShell 7 for the whole computer, and run the task as SYSTEM.*
 - **Why:** your current PowerShell 7 comes from the Microsoft Store and is installed for your account only, so a task running as SYSTEM probably cannot start it.
@@ -70,7 +71,9 @@ Each decision has one recommended default. Say "accept the defaults" to take the
 
 ## Stage details
 
-### Stage 0. Safety net: Git (if D0 is agreed)
+### Stage 0. Safety net: Git (done, 29 October 2026)
+
+Done: `git init -b main`; `.gitignore` leaves out `Logs\`; `.gitattributes` keeps every text file's LF line endings; baseline commit `4239d2b` holds 21 files. Benn ran every step himself.
 
 - **Steps:**
   1. `git init` in the project folder.

@@ -15,6 +15,7 @@ Newest first. Dates are UK dates.
   - AI-MIGRATION.md is new: a staged plan for possibly moving from Claude Code to another AI coding tool, based on Copilot's recommendations.
   - TESTING.md now uses the four test levels from the project instructions.
   - LEARNING-LOG.md is new.
+  - Git: the project folder is now a Git repository (baseline commit `4239d2b`). `.gitignore` leaves out Logs; `.gitattributes` keeps LF line endings.
   - PLAN-2.5.md sets out version 2.5 in seven stages, each with a recommended default for any decision it needs.
 
 ## 2.3 (Copilot draft, not adopted)

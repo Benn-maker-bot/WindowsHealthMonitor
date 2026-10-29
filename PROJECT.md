@@ -57,6 +57,8 @@ The **master copy** is `C:\Scripts\WindowsHealthMonitor\` on Benn's PC (not OneD
 | `Tests\` | Test files (currently a simulation harness that runs only in Claude's Linux workspace) |
 | `Logs\` | One dated folder per run, kept 90 days |
 | `Archive\` | Earlier versions and superseded documents |
+| `.git\` (hidden) | The Git repository: the full history. Never edit it by hand |
+| `.gitignore`, `.gitattributes` | Tell Git to leave out `Logs\` and to keep LF line endings |
 
 Copies kept elsewhere, such as in a Claude Project, are reference copies only. Refresh them at each release.
 
@@ -182,6 +184,7 @@ The **known-good baseline** is version 2.4.0's run on 29 October 2026 at 11:31: 
 
 ## 11. Versioning and documents
 
+- **Git:** commit each coherent change with a short, meaningful message, after its tests pass. Check `git status` and `git diff` before every commit.
 - **Version numbers:** for every material change, bump `$ScriptVersion` (pre-release labels such as 2.5.0-dev.1 during a stage) and add a line to docs/CHANGELOG.md.
 - **Keeping documents in step:** when behaviour changes, update the relevant documents in the same piece of work. The guide and the learning log must not drift out of step with the script.
 - **Recording bugs:** for each bug, record in docs/PROJECT-HISTORY.md:

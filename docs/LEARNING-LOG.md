@@ -32,6 +32,8 @@ Only you can say when something is "comfortable", so that column changes only wh
 | Running a script elevated, and reading its reports | Your runs on 29 October | Practised |
 | Starting a script in PowerShell 7 with `pwsh -NoProfile -ExecutionPolicy Bypass -File` | Your 11:31 run; the future scheduled task | Practised |
 | Getting a second opinion on a design, and checking it against the project's evidence | Copilot's reviews of the script and its change-of-tool plan | Practised |
+| Git: repository, staging (`git add`), commit, history (`git log`) | Stage 0: you created the repository and made the baseline commit | Practised |
+| `.gitignore` and why run reports are left out of Git | Stage 0 | Introduced |
 | Checking evidence before accepting a claim | You questioned the "PowerShell 5.1" statement; the transcript proved it | Practised |
 
 ## Debugging case studies from this project
@@ -48,11 +50,12 @@ Each one is written up in PROJECT-HISTORY.md:
 - **PowerShell 7 and Windows PowerShell 5.1:** used.
 - **Event Viewer, `Get-WinEvent`:** introduced.
 - **PSScriptAnalyzer:** used by Claude.
-- **Coming in version 2.5:** Git, Pester and Task Scheduler.
+- **Git:** used (stage 0, 29 October 2026).
+- **Coming in version 2.5:** Pester and Task Scheduler.
 
 ## Suggested next learning objectives (version 2.5)
 
-1. **Stage 0:** Git basics: repository, commit, history, undo.
+1. **Stage 0:** Git basics: repository, commit, history (done). Still to practise: seeing a change with `git diff`, and undoing one with `git restore`.
 2. **Stage 1:** dot-sourcing, and separating "define" from "run".
 3. **Stage 2:** Pester: `Describe`, `It`, `Should`, `Mock`. Optional: write one test yourself.
 4. **Stage 3:** process trees and exit codes, seen with real Windows programs.

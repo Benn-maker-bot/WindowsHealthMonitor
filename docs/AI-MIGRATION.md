@@ -5,10 +5,11 @@ Status: **under consideration, 29 October 2026.** Based on Copilot's recommendat
 ## Where we are now (resume note)
 
 - **Done:**
+  - Phase 0: version 2.4.0 is under Git (baseline commit `4239d2b`).
   - Phase 1: the baseline run is recorded.
   - Phase 2: the documents are tool-neutral.
   - Phase 3: AGENTS.md is the operating contract for any AI.
-- **Next:** Phase 0 still needs Git, which is stage 0 of docs/PLAN-2.5.md and decision D0. Nothing else in this plan should start before it.
+- **Next:** PLAN-2.5 stages 1 and 2 (testability and the Pester tests), before any trial of a new tool.
 
 ## The three principles
 
@@ -20,7 +21,7 @@ Status: **under consideration, 29 October 2026.** Based on Copilot's recommendat
 
 | Phase | What happens | Status |
 |---|---|---|
-| 0. Freeze the baseline | Keep `C:\Scripts\WindowsHealthMonitor` as the master. Put version 2.4.0 under Git and commit it unchanged | **Git still needed** (PLAN-2.5 stage 0) |
+| 0. Freeze the baseline | Keep `C:\Scripts\WindowsHealthMonitor` as the master. Put version 2.4.0 under Git and commit it unchanged | **Done:** baseline commit `4239d2b`, 29 October 2026 |
 | 1. Runtime baseline | Record a successful real run in PowerShell 7 | **Done:** 29 October 2026 at 11:31, PowerShell 7.6.9, healthy, code 0 |
 | 2. Tool-neutral documents | PROJECT.md (project rules) and AGENTS.md (how an AI must work); CLAUDE.md only points to them | **Done,** 29 October 2026 |
 | 3. Operating contract | Give the new tool AGENTS.md before it writes anything | **Ready** |
@@ -69,7 +70,7 @@ Before declaring the change of tool a success, the new tool must work safely aro
 
 The change of tool is complete only when **all** of these are true:
 
-1. Git protects the project.
+1. Git protects the project (done).
 2. The new tool understands the whole project, not isolated snippets.
 3. It can make changes across several files without damaging unrelated code.
 4. Static analysis works in the new workflow.
@@ -96,7 +97,7 @@ The last condition matters most: the long-term aim is for Benn to be able to rev
 This fits around docs/PLAN-2.5.md rather than replacing it:
 
 1. Known-good 2.4.0 baseline (done).
-2. Git baseline (PLAN-2.5 stage 0).
+2. Git baseline (PLAN-2.5 stage 0) (done).
 3. Record the PowerShell 7 run in the documents (done).
 4. Tool-neutral documents (done).
 5. PLAN-2.5 stage 1: make the script testable.

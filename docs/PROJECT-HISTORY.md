@@ -46,6 +46,12 @@ Automatically check Windows for component-store corruption using DISM, repair it
 - The project's rules moved into tool-neutral files: PROJECT.md (the rules) and AGENTS.md (how any AI must work). CLAUDE.md now only points to them.
 - 2.4.0's run at 11:31 in PowerShell 7.6.9 (healthy, code 0) became the known-good baseline.
 
+### Git (29 October 2026)
+
+- The project folder became a local Git repository, branch `main`. The baseline commit `4239d2b` holds version 2.4.0 exactly as it ran at 11:31, with all the documents: 21 files.
+- `.gitignore` leaves out `Logs\`. `.gitattributes` keeps the LF line endings that every text file already used, so Git never converts them. The bash test files need LF, and LF also avoids confusing warnings.
+- Benn ran each step himself; Claude rehearsed them first on a temporary copy, then checked the result.
+
 ### Pasting problems
 
 - Pasting the script into a chat box converts `<#` to `&lt;#`, `>` to `&gt;` and web addresses into HTML links. Several "corruption" reports came from pasted copies; the files themselves were clean. Never move the script by pasting.
@@ -69,7 +75,7 @@ Automatically check Windows for component-store corruption using DISM, repair it
 
 ## Open items
 
-- Decide D0 to D4 in docs/PLAN-2.5.md (each has a recommended default), then build version 2.5 in its seven stages: Git, testability, Pester tests, Windows integration tests, PowerShell 7 only, scheduled task, release.
-- Git: start with a local repository (plan stage 0); a private GitHub repository can follow later if wanted. Git also comes first in the change-of-tool plan.
+- Build the rest of version 2.5 (docs/PLAN-2.5.md): testability, Pester tests, Windows integration tests, PowerShell 7 only, scheduled task, release. Decide D1 to D4 before stage 4.
+- A private GitHub repository can follow the local Git repository later, if wanted.
 - Change of AI tool: follow docs/AI-MIGRATION.md; no replacement tool chosen yet.
 - The repair paths have been simulated but not yet run on Windows; they will be tested for real the first time Windows needs a repair.
