@@ -1,0 +1,7 @@
+# Files Git should not track.
+
+# Run reports: a new folder appears on every run, and they stay on this PC.
+Logs/
+
+# Temporary files that Word creates while a document is open.
+~$*

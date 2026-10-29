@@ -1,0 +1,8 @@
+# How Git should treat files in this project.
+
+# Every text file here uses LF (Unix-style) line endings. Keep them that way on
+# every computer, so Git never converts them or warns about converting them.
+* text=auto eol=lf
+
+# Word documents are binary: Git stores them exactly as they are.
+*.docx binary

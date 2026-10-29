@@ -1,0 +1,200 @@
+﻿#requires -Version 5.1
+#requires -RunAsAdministrator
+
+<#
+.SYNOPSIS
+  Checks the Windows component store, repairs it when required, then runs SFC.
+.DESCRIPTION
+  Intended to be run by Task Scheduler with highest privileges.
+  Reports are stored in a Logs folder beside this script.
+  A pop-up notification is shown when the task runs in the logged-on user's session.
+#>
+
+[CmdletBinding()]
+param()
+
+$ErrorActionPreference = 'Stop'
+$ScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$LogRoot = Join-Path $ScriptRoot 'Logs'
+$RunStamp = Get-Date -Format 'yyyy-MM-dd_HHmmss'
+$RunFolder = Join-Path $LogRoot $RunStamp
+$SummaryFile = Join-Path $RunFolder 'Summary.txt'
+$TranscriptFile = Join-Path $RunFolder 'Full-Transcript.txt'
+$DismScanFile = Join-Path $RunFolder 'DISM-ScanHealth.txt'
+$DismRepairFile = Join-Path $RunFolder 'DISM-RestoreHealth.txt'
+$SfcFile = Join-Path $RunFolder 'SFC-Scannow.txt'
+$SfcDetailsFile = Join-Path $RunFolder 'SFC-CBS-Details.txt'
+$MutexName = 'Global\WindowsHealthMonitor-DISM-SFC'
+
+New-Item -ItemType Directory -Path $RunFolder -Force | Out-Null
+
+function Write-Summary {
+    param([string]$Text)
+    $line = '{0}  {1}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $Text
+    $line | Tee-Object -FilePath $SummaryFile -Append | Write-Host
+}
+
+function Show-ResultNotification {
+    param(
+        [string]$Title,
+        [string]$Message,
+        [ValidateSet('Information','Warning','Error')]
+        [string]$Type = 'Information'
+    )
+
+    $icon = switch ($Type) {
+        'Error'   { 16 }
+        'Warning' { 48 }
+        default   { 64 }
+    }
+
+    try {
+        $shell = New-Object -ComObject WScript.Shell
+        [void]$shell.Popup($Message, 60, $Title, $icon)
+    }
+    catch {
+        Write-Summary "The on-screen notification could not be displayed: $($_.Exception.Message)"
+    }
+}
+
+function Invoke-NativeCommand {
+    param(
+        [Parameter(Mandatory)] [string]$FilePath,
+        [Parameter(Mandatory)] [string[]]$Arguments,
+        [Parameter(Mandatory)] [string]$OutputFile
+    )
+
+    $output = & $FilePath @Arguments 2>&1
+    $exitCode = $LASTEXITCODE
+    $output | Out-File -FilePath $OutputFile -Encoding utf8
+
+    [pscustomobject]@{
+        ExitCode = $exitCode
+        Output = ($output -join [Environment]::NewLine)
+    }
+}
+
+$createdNew = $false
+$mutex = New-Object System.Threading.Mutex($true, $MutexName, [ref]$createdNew)
+if (-not $createdNew) {
+    'Another Windows Health Monitor run is already in progress.' | Out-File $SummaryFile -Encoding utf8
+    exit 10
+}
+
+$finalTitle = 'Windows health check'
+$finalMessage = 'The health check did not complete.'
+$finalType = 'Error'
+$finalExitCode = 1
+
+try {
+    Start-Transcript -Path $TranscriptFile -Force | Out-Null
+    Write-Summary 'Windows component-store health check started.'
+
+    Write-Summary 'Running DISM ScanHealth...'
+    $scan = Invoke-NativeCommand -FilePath "$env:SystemRoot\System32\Dism.exe" `
+        -Arguments @('/Online','/Cleanup-Image','/ScanHealth','/English') `
+        -OutputFile $DismScanFile
+
+    Write-Summary "DISM ScanHealth exit code: $($scan.ExitCode)"
+
+    if ($scan.ExitCode -ne 0) {
+        throw "DISM ScanHealth failed with exit code $($scan.ExitCode). See $DismScanFile"
+    }
+
+    # Test the explicit healthy result first. The phrase
+    # 'No component store corruption detected' contains the substring
+    # 'component store corruption detected', so a broad corruption regex
+    # would otherwise produce a false positive.
+    $healthy = $scan.Output -match '(?im)^.*No component store corruption detected\.?.*$'
+    $nonRepairable = $scan.Output -match '(?im)^.*(component store cannot be repaired|non-repairable).*$'
+    $corruptionFound = (-not $healthy) -and ($scan.Output -match '(?im)^.*(component store is repairable|component store corruption detected)\.?.*$')
+
+    if ($healthy) {
+        Write-Summary 'No component-store corruption was detected. No repair or SFC scan was required.'
+        $finalMessage = "No Windows component-store corruption was detected.`n`nReport: $SummaryFile"
+        $finalType = 'Information'
+        $finalExitCode = 0
+    }
+    elseif ($nonRepairable) {
+        Write-Summary 'DISM reports that the component store is not repairable.'
+        $finalMessage = "Windows corruption was detected but DISM reports that it is not repairable.`n`nReport: $SummaryFile"
+        $finalType = 'Error'
+        $finalExitCode = 3
+    }
+    elseif ($corruptionFound) {
+        Write-Summary 'Repairable component-store corruption was detected.'
+        Write-Summary 'Running DISM RestoreHealth...'
+
+        $repair = Invoke-NativeCommand -FilePath "$env:SystemRoot\System32\Dism.exe" `
+            -Arguments @('/Online','/Cleanup-Image','/RestoreHealth','/English') `
+            -OutputFile $DismRepairFile
+
+        Write-Summary "DISM RestoreHealth exit code: $($repair.ExitCode)"
+        if ($repair.ExitCode -ne 0) {
+            throw "DISM RestoreHealth failed with exit code $($repair.ExitCode). See $DismRepairFile"
+        }
+
+        Write-Summary 'DISM repair completed. Running SFC /scannow...'
+        $sfc = Invoke-NativeCommand -FilePath "$env:SystemRoot\System32\sfc.exe" `
+            -Arguments @('/scannow') `
+            -OutputFile $SfcFile
+
+        Write-Summary "SFC exit code: $($sfc.ExitCode)"
+
+        # Export the SFC-specific [SR] entries from CBS.log for this report.
+        $cbsLog = Join-Path $env:SystemRoot 'Logs\CBS\CBS.log'
+        if (Test-Path $cbsLog) {
+            Select-String -Path $cbsLog -Pattern '\[SR\]' -SimpleMatch:$false |
+                ForEach-Object { $_.Line } |
+                Out-File -FilePath $SfcDetailsFile -Encoding utf8
+        }
+
+        if ($sfc.Output -match 'did not find any integrity violations') {
+            Write-Summary 'SFC found no integrity violations after the DISM repair.'
+            $finalMessage = "Corruption was detected and DISM repaired the component store. SFC then found no integrity violations.`n`nReport: $SummaryFile"
+            $finalType = 'Warning'
+            $finalExitCode = 0
+        }
+        elseif ($sfc.Output -match 'successfully repaired') {
+            Write-Summary 'SFC found corrupt system files and successfully repaired them.'
+            $finalMessage = "Corruption was detected. DISM and SFC completed repairs successfully.`n`nReport: $SummaryFile"
+            $finalType = 'Warning'
+            $finalExitCode = 0
+        }
+        elseif ($sfc.Output -match 'unable to fix some of them|could not perform the requested operation') {
+            Write-Summary 'SFC could not repair everything. Manual review is required.'
+            $finalMessage = "DISM completed, but SFC could not repair everything. Review the report and CBS details.`n`nReport: $SummaryFile"
+            $finalType = 'Error'
+            $finalExitCode = 4
+        }
+        else {
+            Write-Summary 'SFC completed, but its result was not recognised automatically. Review the saved output.'
+            $finalMessage = "DISM repair and SFC completed, but the SFC result needs reviewing.`n`nReport: $SummaryFile"
+            $finalType = 'Warning'
+            $finalExitCode = $sfc.ExitCode
+        }
+    }
+    else {
+        Write-Summary 'DISM completed, but its result was not recognised automatically. Review the DISM output.'
+        $finalMessage = "DISM completed, but the result needs reviewing.`n`nReport: $SummaryFile"
+        $finalType = 'Warning'
+        $finalExitCode = 5
+    }
+}
+catch {
+    Write-Summary "ERROR: $($_.Exception.Message)"
+    $finalMessage = "The Windows health check failed.`n$($_.Exception.Message)`n`nReport: $SummaryFile"
+    $finalType = 'Error'
+    $finalExitCode = 1
+}
+finally {
+    Write-Summary "Finished with result code $finalExitCode."
+    try { Stop-Transcript | Out-Null } catch {}
+    Show-ResultNotification -Title $finalTitle -Message $finalMessage -Type $finalType
+    if ($mutex) {
+        try { $mutex.ReleaseMutex() } catch {}
+        $mutex.Dispose()
+    }
+}
+
+exit $finalExitCode
