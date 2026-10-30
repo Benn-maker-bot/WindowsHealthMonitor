@@ -1,13 +1,14 @@
 # Windows Health Monitor: plan for version 2.5
 
-Status: **in progress.** Stage 0 (Git) done on 29 October 2026; stages 1 to 6 not started.
+Status: **in progress.** Stage 0 (Git) done on 29 October 2026. Stage 1 (testability) done on 29 October 2026: 2.5.0-dev.1, simulated and run on Benn's PC. Stages 2 to 6 not started.
 
 ## Where we are now (resume note)
 
-- **Current version:** 2.4.0, in `C:\Scripts\WindowsHealthMonitor\WindowsHealthMonitor.ps1`.
-- **Last real run:** 29 October 2026 at 11:31, in PowerShell 7.6.9. Healthy, result code 0, 2 min 2 s. This is the **known-good baseline**: every later change is compared against it.
-- **Git:** in use since 29 October 2026. The baseline commit is `4239d2b`, version 2.4.0 exactly as it ran at 11:31.
-- **Next action:** stage 1, making the script testable. It needs no decisions. D1 to D4 are needed only from stage 4 onwards.
+- **Current version:** 2.5.0-dev.1, in `C:\Scripts\WindowsHealthMonitor\WindowsHealthMonitor.ps1`.
+- **Known-good baseline:** 29 October 2026 at 11:31, version 2.4.0 in PowerShell 7.6.9. Healthy, result code 0, 2 min 2 s. Every later change is compared against it.
+- **Last real run:** 29 October 2026 at 13:19, version 2.5.0-dev.1 in PowerShell 7.6.9. Healthy, code 0, 2 min 9 s, matching the baseline.
+- **Git:** `4239d2b` (the 2.4.0 baseline), `b325a72` (documents record stage 0), then one commit for stage 1 ("Stage 1: make the script testable (2.5.0-dev.1)").
+- **Next action:** stage 2, the Pester tests. It needs no decisions; D1 to D4 are needed only from stage 4 onwards.
 
 ## At a glance
 
@@ -83,6 +84,12 @@ Done: `git init -b main`; `.gitignore` leaves out `Logs\`; `.gitattributes` keep
 - **Test:** `git status` shows a clean working tree.
 
 ### Stage 1. Make the script testable (no behaviour change)
+
+Done on 29 October 2026 as 2.5.0-dev.1, as described below. Tested: simulations, `Test-DotSource.ps1`, and a real healthy run on Benn's PC at 13:19 that matched the baseline. With these additions:
+
+- The code-10 branch (another run in progress) used `exit 10` inside what is now a function. It now stores code 10 in `$script:Outcome` and returns, so the function never calls `exit`.
+- A run without administrator rights writes no reports, as in 2.4.0, because creating them may itself need the missing rights.
+- `Tests\Test-DotSource.ps1` was added: a safe check Benn can run on Windows.
 
 - **Changes:**
   - **The main section becomes a function,** `Invoke-WindowsHealthMonitor`. It runs only when the script is started, not when a test loads it:

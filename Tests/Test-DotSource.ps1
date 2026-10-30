@@ -1,0 +1,38 @@
+# Test-DotSource.ps1 - checks that the health monitor can be LOADED without being RUN.
+#
+# Safe: it runs no DISM or SFC, changes nothing, and needs no administrator rights.
+# Run it from any PowerShell 7 window:
+#
+#     pwsh -NoProfile -File "C:\Scripts\WindowsHealthMonitor\Tests\Test-DotSource.ps1"
+#
+# Every line should end in PASS. This is a stepping stone: in version 2.5 stage 2, Pester
+# tests replace it.
+
+$script = Join-Path (Split-Path -Parent $PSScriptRoot) 'WindowsHealthMonitor.ps1'
+$logs   = Join-Path (Split-Path -Parent $PSScriptRoot) 'Logs'
+$before = @(Get-ChildItem -LiteralPath $logs -Directory -ErrorAction SilentlyContinue).Count
+
+# The dot and the space: load the script into this scope without starting a health check.
+. $script
+
+$failures = 0
+function Assert {
+    param([string]$Name, [bool]$Passed)
+    $word = if ($Passed) { 'PASS' } else { 'FAIL' }
+    if (-not $Passed) { $script:failures++ }
+    Write-Host ('{0,-64} {1}' -f $Name, $word)
+}
+
+$after = @(Get-ChildItem -LiteralPath $logs -Directory -ErrorAction SilentlyContinue).Count
+Assert 'Loading created no report folder'                         ($after -eq $before)
+Assert 'The verdict is still the starting value (nothing ran)'     ($script:Outcome.Message -eq 'The health check stopped before it reached a result.' -and $script:Steps.Count -eq 0)
+Assert 'Invoke-WindowsHealthMonitor is loaded'                     ([bool](Get-Command Invoke-WindowsHealthMonitor -CommandType Function -ErrorAction SilentlyContinue))
+Assert 'Healthy DISM text is Healthy (the false-positive guard)'  ((Get-DismScanState 'No component store corruption detected.') -eq 'Healthy')
+Assert 'Repair arguments without a source have no /LimitAccess'   (-not ((Get-RestoreHealthArgument) -contains '/LimitAccess'))
+Assert 'A source path with spaces is quoted, with /LimitAccess'   (((Get-RestoreHealthArgument -Source 'WIM:D:\My Media\install.wim:6') -join ' ') -eq '/Online /Cleanup-Image /RestoreHealth /English /Source:"WIM:D:\My Media\install.wim:6" /LimitAccess')
+Assert 'Result.json schema version is 1'                          ($ResultSchemaVersion -eq 1)
+
+Write-Host ''
+Write-Host "Administrator rights in this window: $(Test-IsAdministrator) (either answer is fine for this test)."
+Write-Host $(if ($failures -eq 0) { 'All checks passed.' } else { "$failures check(s) FAILED." })
+exit $failures

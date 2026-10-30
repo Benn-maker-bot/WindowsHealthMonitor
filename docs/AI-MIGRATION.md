@@ -9,7 +9,7 @@ Status: **under consideration, 29 October 2026.** Based on Copilot's recommendat
   - Phase 1: the baseline run is recorded.
   - Phase 2: the documents are tool-neutral.
   - Phase 3: AGENTS.md is the operating contract for any AI.
-- **Next:** PLAN-2.5 stages 1 and 2 (testability and the Pester tests), before any trial of a new tool.
+- **Next:** PLAN-2.5 stage 2 (the Pester tests), before any trial of a new tool. Stage 1 (testability) is done: 2.5.0-dev.1.
 
 ## The three principles
 
@@ -100,7 +100,7 @@ This fits around docs/PLAN-2.5.md rather than replacing it:
 2. Git baseline (PLAN-2.5 stage 0) (done).
 3. Record the PowerShell 7 run in the documents (done).
 4. Tool-neutral documents (done).
-5. PLAN-2.5 stage 1: make the script testable.
+5. PLAN-2.5 stage 1: make the script testable (done).
 6. PLAN-2.5 stage 2: the Pester regression suite.
 7. Phases 4 and 5: qualification test and harmless editing trial of the new tool.
 8. Phase 7: the parallel review period.

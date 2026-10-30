@@ -1,5 +1,7 @@
 #requires -Version 5.1
-#requires -RunAsAdministrator
+# Administrator rights are checked inside Invoke-WindowsHealthMonitor (Test-IsAdministrator)
+# rather than with "#requires -RunAsAdministrator", which would stop a test from even loading
+# the functions in an ordinary, non-elevated window.
 
 <#
 .SYNOPSIS
@@ -7,10 +9,16 @@
   and confirms every repair with a second scan before it reports success.
 
 .DESCRIPTION
-  Windows Health Monitor 2.4.
+  Windows Health Monitor 2.5 (in development).
 
   Designed for Task Scheduler ("Run with highest privileges"); also safe to run by hand
-  from an elevated PowerShell window.
+  from an elevated PowerShell window. Without administrator rights it stops at once with
+  exit code 1.
+
+  Testing
+    Dot-sourcing the script (. .\WindowsHealthMonitor.ps1) loads its settings and functions
+    WITHOUT running a health check, so tests can call each function on its own. Starting
+    it any other way (-File, & or .\) runs the health check as normal.
 
   PowerShell versions
     Designed for the latest stable PowerShell 7 (pwsh.exe), which the scheduled task should
@@ -76,17 +84,19 @@
 # ============================================================================================
 #  HOW TO READ THIS SCRIPT
 # ============================================================================================
-#  PowerShell reads this file from top to bottom, but most of it only DEFINES things
-#  (settings and functions). The work itself happens in the last section:
+#  PowerShell reads this file from top to bottom, but almost all of it only DEFINES things
+#  (settings and functions). Nothing happens until the very last lines:
 #
 #     1. param(...)        What you can type on the command line.
 #     2. Configuration     Fixed settings: version, file paths, error hints.
 #     3. Run state         Variables that collect results while the script runs.
 #     4. Helpers           Small reusable functions (logging, formatting, reading output).
 #     5. Health check      The DISM and SFC logic - the heart of the script.
-#     6. Main              ACTION: lock, create reports, run the checks, finish up.
+#     6. Main              Invoke-WindowsHealthMonitor: lock, reports, checks, finish up.
+#     7. Start             The last few lines: run section 6, unless a test is loading
+#                          the script (see "dot-sourcing" there).
 #
-#  So things HAPPEN in section 6, which calls the functions in sections 4 and 5.
+#  So things HAPPEN when section 7 calls section 6, which calls sections 4 and 5.
 #  The companion guide, WindowsHealthMonitor-Guide.docx, explains every part with diagrams.
 #
 #  POWERSHELL BASICS USED THROUGHOUT
@@ -164,7 +174,10 @@ Set-StrictMode -Version 2.0
 #    $env:SystemRoot is normally C:\Windows.
 #  * The lock name starts with "Global\" so that every sign-in session shares one lock:
 #    a scheduled run and a run in your own window cannot overlap.
-$ScriptVersion = '2.4.0'
+$ScriptVersion = '2.5.0-dev.1'
+# The layout version of Result.json. Raise it only when a field is renamed, removed or changes
+# meaning, so that a program reading old and new reports can tell them apart.
+$ResultSchemaVersion = 1
 $EventSource   = 'WindowsHealthMonitor'
 $MutexName     = 'Global\WindowsHealthMonitor-DISM-SFC'
 
@@ -433,6 +446,25 @@ function Format-Duration {
     return '{0} h {1} min' -f [Math]::Floor($seconds / 3600), [Math]::Floor(($seconds % 3600) / 60)
 }
 
+# Test-IsAdministrator - $true only when this PowerShell is running with administrator rights
+# ("elevated"). DISM and SFC refuse to run without them.
+#   WindowsIdentity   the Windows account running this process;
+#   WindowsPrincipal  that account plus its group memberships, which IsInRole() checks.
+# In an unelevated window, Windows hides the Administrators group from the process even for
+# an administrator account, so IsInRole returns $false there - exactly the test needed.
+# If the check itself fails, the answer is $false: refusing to run is the safe choice.
+# It is a separate function so that a test can replace it with a stub.
+function Test-IsAdministrator {
+    try {
+        $identity  = [Security.Principal.WindowsIdentity]::GetCurrent()
+        $principal = New-Object Security.Principal.WindowsPrincipal($identity)
+        return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    }
+    catch {
+        return $false
+    }
+}
+
 function Get-RunContext {
     # Who and what ran the script. Mainly useful for scheduled runs, which may run as
     # SYSTEM or another account, in session 0, or under a 32-bit host.
@@ -600,6 +632,21 @@ function Get-SfcState {
     if ($Text -match 'did not find any integrity violations')         { return 'Clean' }
     if ($Text -match 'found integrity violations')                    { return 'ViolationsFound' }
     return 'Unknown'
+}
+
+# Get-RestoreHealthArgument - the command-line options for DISM /RestoreHealth.
+# With a -Source, DISM takes its repair files from that installation image, and /LimitAccess
+# stops it contacting Windows Update. The source is put in double quotes so that a path
+# containing spaces reaches DISM as one option. The source is passed in as a parameter,
+# rather than read from $RepairSource, so a test can check every case directly.
+function Get-RestoreHealthArgument {
+    param([string]$Source)
+    $arguments = @('/Online', '/Cleanup-Image', '/RestoreHealth', '/English')
+    if ($Source) {
+        $arguments += "/Source:`"$Source`""
+        $arguments += '/LimitAccess'
+    }
+    return $arguments
 }
 
 # Format-Size and Format-DriveSpace - build the free-space line in the summary, using the
@@ -791,7 +838,8 @@ function Save-ResultFile {
     $finished = Get-Date
     $result = [ordered]@{
         Tool                  = 'Windows Health Monitor'
-        ScriptVersion         = $ScriptVersion
+        SchemaVersion         = $ResultSchemaVersion
+        ScriptVersion        = $ScriptVersion
         Computer              = $env:COMPUTERNAME
         OperatingSystem       = $script:OsDescription
         Started               = $RunStarted.ToString('s')
@@ -988,11 +1036,7 @@ function Invoke-HealthCheck {
         'Repairable' {
             # ---- Step 2: DISM RestoreHealth --------------------------------------------------
             $script:State.DismRepairAttempted = $true
-            $restoreArgs = @('/Online', '/Cleanup-Image', '/RestoreHealth', '/English')
-            if ($RepairSource) {
-                $restoreArgs += "/Source:`"$RepairSource`""
-                $restoreArgs += '/LimitAccess'
-            }
+            $restoreArgs = Get-RestoreHealthArgument -Source $RepairSource
             $restore = Invoke-Tool -Name 'DISM /RestoreHealth' -FilePath $DismExe -ArgumentList $restoreArgs `
                 -OutputFile (Join-Path $RunFolder '2-DISM-RestoreHealth.txt') -TimeoutMinutes $DismTimeoutMinutes
 
@@ -1098,98 +1142,145 @@ function Invoke-HealthCheck {
 }
 
 # --------------------------------------------------------------------------------------------
-#  Main
+#  Main (section 6)
 # --------------------------------------------------------------------------------------------
 
-# THIS IS WHERE THE SCRIPT STARTS DOING THINGS (section 6). Everything above only defines
-# settings and functions; the code below uses them (normally in PowerShell 7).
+# Invoke-WindowsHealthMonitor - THE WHOLE RUN (section 6). Everything above only defines
+# settings and functions; this function uses them, and section 7 calls it.
+#
+# Until version 2.4.0 this code sat loose at the end of the file, so loading the file always
+# started a health check. As a function it runs only when called, which lets tests load the
+# script without running DISM or SFC (version 2.5, stage 1). It does not call "exit": it
+# leaves the result in $script:Outcome and returns, and section 7 turns that into the exit
+# code. An "exit" here would also close a test session that called the function.
 #
 # A mutex is a lock provided by Windows: only one process can hold it at a time. If a second
-# copy starts while one is running, it finds the lock taken and exits with code 10, rather
+# copy starts while one is running, it finds the lock taken and stops with code 10, rather
 # than running DISM twice at once. "Abandoned" means the previous holder was stopped without
 # releasing it; the lock then passes to this run, which is safe.
-# Single-instance lock. Opening without initial ownership and then waiting for zero
-# milliseconds also recovers a lock abandoned by a run that was killed.
-$mutex   = New-Object System.Threading.Mutex($false, $MutexName)
-$hasLock = $false
-try {
-    $hasLock = $mutex.WaitOne(0)
-}
-catch [System.Threading.AbandonedMutexException] {
-    $hasLock = $true
-}
+function Invoke-WindowsHealthMonitor {
 
-if (-not $hasLock) {
-    $mutex.Dispose()
-    $busyMessage = 'Another Windows Health Monitor run is already in progress, so this run was skipped.'
-    Write-Host $busyMessage
-    Write-HealthEvent -EventId 1010 -EntryType 'Information' -Message $busyMessage
-    exit 10
-}
+    # Administrator rights first, as "#requires -RunAsAdministrator" did until 2.4.0: without
+    # them nothing else can work, so stop at once with code 1 and say why. No reports are
+    # written, because creating the report folder or the event source may itself need the
+    # rights that are missing.
+    if (-not (Test-IsAdministrator)) {
+        $script:Outcome = [pscustomobject]@{
+            Code    = 1
+            Type    = 'Error'
+            Message = 'Windows Health Monitor needs administrator rights, because DISM and SFC do. Open PowerShell with "Run as administrator", or set the scheduled task to "Run with highest privileges".'
+        }
+        Write-Host $script:Outcome.Message
+        return
+    }
 
-try {
-    # | Out-Null discards a command's output so that it does not appear on screen.
-    New-Item -ItemType Directory -Path $RunFolder -Force | Out-Null
-    $script:SummaryAvailable = $true
+    # Single-instance lock. Opening without initial ownership and then waiting for zero
+    # milliseconds also recovers a lock abandoned by a run that was killed.
+    $mutex   = New-Object System.Threading.Mutex($false, $MutexName)
+    $hasLock = $false
+    try {
+        $hasLock = $mutex.WaitOne(0)
+    }
+    catch [System.Threading.AbandonedMutexException] {
+        $hasLock = $true
+    }
 
-    try { Start-Transcript -LiteralPath $TranscriptFile -Force | Out-Null }
-    catch { Write-Summary "The transcript could not be started: $($_.Exception.Message)" }
+    if (-not $hasLock) {
+        $mutex.Dispose()
+        $script:Outcome = [pscustomobject]@{
+            Code    = 10
+            Type    = 'Information'
+            Message = 'Another Windows Health Monitor run is already in progress, so this run was skipped.'
+        }
+        Write-Host $script:Outcome.Message
+        Write-HealthEvent -EventId 1010 -EntryType 'Information' -Message $script:Outcome.Message
+        return
+    }
 
     try {
-        $os = Get-CimInstance -ClassName Win32_OperatingSystem
-        $cv = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion'
-        $script:OsDescription = '{0} {1}, build {2}.{3}' -f $os.Caption, $cv.DisplayVersion, $cv.CurrentBuild, $cv.UBR
+        # | Out-Null discards a command's output so that it does not appear on screen.
+        New-Item -ItemType Directory -Path $RunFolder -Force | Out-Null
+        $script:SummaryAvailable = $true
+
+        try { Start-Transcript -LiteralPath $TranscriptFile -Force | Out-Null }
+        catch { Write-Summary "The transcript could not be started: $($_.Exception.Message)" }
+
+        try {
+            $os = Get-CimInstance -ClassName Win32_OperatingSystem
+            $cv = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion'
+            $script:OsDescription = '{0} {1}, build {2}.{3}' -f $os.Caption, $cv.DisplayVersion, $cv.CurrentBuild, $cv.UBR
+        }
+        catch {
+            $script:OsDescription = [Environment]::OSVersion.VersionString
+        }
+
+        Write-Summary "Windows Health Monitor $ScriptVersion started on $env:COMPUTERNAME ($($script:OsDescription))."
+        Write-Summary "SFC mode: $SfcMode. Reports: $RunFolder"
+
+        # Record which PowerShell is running the script. Nothing is downloaded or installed.
+        try { $script:PowerShellInfo.Path = (Get-Process -Id $PID).Path }
+        catch { Write-Verbose 'The PowerShell path could not be read.' }
+        $editionName = if ($script:PowerShellInfo.Edition -eq 'Core') { 'PowerShell' } else { 'Windows PowerShell' }
+        Write-Summary "PowerShell: $editionName $($script:PowerShellInfo.Version) ($($script:PowerShellInfo.Path))."
+
+        Remove-OldRunFolder
+        Invoke-HealthCheck
     }
+    # Any error not handled elsewhere lands here and becomes result code 1, with its line number.
     catch {
-        $script:OsDescription = [Environment]::OSVersion.VersionString
+        Set-Outcome -Code 1 -Type Error -Message "The script failed at line $($_.InvocationInfo.ScriptLineNumber): $($_.Exception.Message)"
     }
+    # finally runs whatever happened above - success, a problem found, or an unexpected error -
+    # so the summary, Result.json, Event Viewer entry and lock release always happen.
+    finally {
+        if ($script:State.RestartRecommended -and $script:Outcome.Message -notmatch 'restart') {
+            $script:Outcome.Message += ' Windows also reports that a restart is required.'
+        }
+        if ($script:Notes.Count -gt 0) {
+            $script:Outcome.Message += " See the $($script:Notes.Count) note(s) in Summary.txt."
+        }
 
-    Write-Summary "Windows Health Monitor $ScriptVersion started on $env:COMPUTERNAME ($($script:OsDescription))."
-    Write-Summary "SFC mode: $SfcMode. Reports: $RunFolder"
+        Write-Summary "Finished in $(Format-Duration ((Get-Date) - $RunStarted)) with result code $($script:Outcome.Code)."
 
-    # Record which PowerShell is running the script. Nothing is downloaded or installed.
-    try { $script:PowerShellInfo.Path = (Get-Process -Id $PID).Path }
-    catch { Write-Verbose 'The PowerShell path could not be read.' }
-    $editionName = if ($script:PowerShellInfo.Edition -eq 'Core') { 'PowerShell' } else { 'Windows PowerShell' }
-    Write-Summary "PowerShell: $editionName $($script:PowerShellInfo.Version) ($($script:PowerShellInfo.Path))."
+        try { Save-ResultFile }
+        catch { Write-Summary "Result.json could not be written: $($_.Exception.Message)" }
 
-    Remove-OldRunFolder
-    Invoke-HealthCheck
-}
-# Any error not handled elsewhere lands here and becomes result code 1, with its line number.
-catch {
-    Set-Outcome -Code 1 -Type Error -Message "The script failed at line $($_.InvocationInfo.ScriptLineNumber): $($_.Exception.Message)"
-}
-# finally runs whatever happened above - success, a problem found, or an unexpected error -
-# so the summary, Result.json, Event Viewer entry and lock release always happen.
-finally {
-    if ($script:State.RestartRecommended -and $script:Outcome.Message -notmatch 'restart') {
-        $script:Outcome.Message += ' Windows also reports that a restart is required.'
+        try { Stop-Transcript | Out-Null }
+        catch { Write-Verbose 'No transcript was running.' }
+
+        $eventMessage = "$($script:Outcome.Message)`r`n`r`nResult code: $($script:Outcome.Code)`r`nReport folder: $RunFolder"
+        Write-HealthEvent -EventId (1000 + $script:Outcome.Code) -EntryType $script:Outcome.Type -Message $eventMessage
+
+        # Release the lock before the pop-up, which can wait up to 60 seconds.
+        try { $mutex.ReleaseMutex() }
+        catch { Write-Verbose "The lock could not be released: $($_.Exception.Message)" }
+        $mutex.Dispose()
+
+        Show-ResultPopup -Title 'Windows health check' `
+            -Message "$($script:Outcome.Message)`n`nReport: $SummaryFile" -Type $script:Outcome.Type
     }
-    if ($script:Notes.Count -gt 0) {
-        $script:Outcome.Message += " See the $($script:Notes.Count) note(s) in Summary.txt."
-    }
-
-    Write-Summary "Finished in $(Format-Duration ((Get-Date) - $RunStarted)) with result code $($script:Outcome.Code)."
-
-    try { Save-ResultFile }
-    catch { Write-Summary "Result.json could not be written: $($_.Exception.Message)" }
-
-    try { Stop-Transcript | Out-Null }
-    catch { Write-Verbose 'No transcript was running.' }
-
-    $eventMessage = "$($script:Outcome.Message)`r`n`r`nResult code: $($script:Outcome.Code)`r`nReport folder: $RunFolder"
-    Write-HealthEvent -EventId (1000 + $script:Outcome.Code) -EntryType $script:Outcome.Type -Message $eventMessage
-
-    # Release the lock before the pop-up, which can wait up to 60 seconds.
-    try { $mutex.ReleaseMutex() }
-    catch { Write-Verbose "The lock could not be released: $($_.Exception.Message)" }
-    $mutex.Dispose()
-
-    Show-ResultPopup -Title 'Windows health check' `
-        -Message "$($script:Outcome.Message)`n`nReport: $SummaryFile" -Type $script:Outcome.Type
 }
 
+# --------------------------------------------------------------------------------------------
+#  Start (section 7)
+# --------------------------------------------------------------------------------------------
+
+# THIS IS WHERE THE SCRIPT STARTS DOING THINGS.
+#
+# $MyInvocation describes how this script was started. Its InvocationName is the word or
+# path that started it: the script's path with "pwsh -File", "&" with the call operator, and
+# a single dot "." when the script is DOT-SOURCED:
+#
+#     . .\WindowsHealthMonitor.ps1      <- note the dot and the space before the path
+#
+# Dot-sourcing runs a script in the caller's own scope, so its functions and variables stay
+# available afterwards. Tests use it to load every function without starting a health
+# check, then call the functions one at a time. Any other way of starting the script runs
+# the health check as normal.
+#
 # The result code becomes the program's exit code, which Task Scheduler shows as
 # "Last Run Result" (0x0 when healthy).
-exit $script:Outcome.Code
+if ($MyInvocation.InvocationName -ne '.') {
+    Invoke-WindowsHealthMonitor
+    exit $script:Outcome.Code
+}

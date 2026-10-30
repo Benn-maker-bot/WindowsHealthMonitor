@@ -39,7 +39,9 @@ Also run PSScriptAnalyzer: `Invoke-ScriptAnalyzer -Path $path` (and, while 5.1 i
 
 The real script runs end to end in PowerShell 7 on Linux, against **fake** DISM.exe and sfc.exe programs. They print the same messages and exit codes as the real tools, including SFC's UTF-16LE output, DISM's progress bars and CBS.log [SR] lines. This exercises every decision in the script, but it is a simulation, not a Windows test.
 
-Expected results (all passed for 2.4.0 on 29 October 2026):
+From 2.5.0-dev.1 the script checks for Windows administrator rights, which Linux cannot grant. The harness therefore runs the scenarios in **dot mode**: it dot-sources the script, replaces `Test-IsAdministrator` with a stub that answers "yes", and calls `Invoke-WindowsHealthMonitor`. **File mode** (`pwsh -File`, as Task Scheduler starts it) is still run once, and must stop with code 1 and the administrator message, having started no DISM.
+
+Expected results (all passed for 2.4.0 and for 2.5.0-dev.1 on 29 October 2026; for 2.5.0-dev.1, Summary.txt, the report files and Result.json's State were also identical to 2.4.0's, apart from the version and the new SchemaVersion field):
 
 | Scenario | What the fake tools do | Expected code |
 |---|---|---|
@@ -55,10 +57,24 @@ Expected results (all passed for 2.4.0 on 29 October 2026):
 | sfc-pending | "system repair pending which requires reboot" | 6 |
 | lock | A second run starts while the first holds the lock | 10 for the second run |
 | time-out | DISM runs past -DismTimeoutMinutes 10 | 7; output kept; no processes left |
+| dism-repair, -RepairSource with a space in the path (from 2.5.0-dev.1) | As dism-repair | 2; `/Source:"WIM:D:\My Media\install.wim:6" /LimitAccess`, the same as 2.4.0 |
+| file mode, no administrator rights (from 2.5.0-dev.1) | Nothing: the script stops first | 1; the administrator message; DISM never started |
 
 Known differences on Linux: no Event Viewer, no Get-CimInstance (so no free-space line) and no registry. The script handles each of these as a logged problem and carries on, which the simulation also confirms.
 
-### 2b. Pester unit and regression tests (planned: version 2.5, stage 2)
+### 2b. Loading without running: `Tests\Test-DotSource.ps1` (any computer, from 2.5.0-dev.1)
+
+Safe: it runs no DISM or SFC and needs no administrator rights. In PowerShell 7:
+
+```powershell
+pwsh -NoProfile -File "C:\Scripts\WindowsHealthMonitor\Tests\Test-DotSource.ps1"
+```
+
+Every line should end in PASS, and the last line should say "All checks passed." It checks that dot-sourcing creates no report folder and runs nothing, and tries three functions on their own. Claude confirmed the test can fail: with the dot-sourcing check deliberately broken on a copy, it reports FAIL.
+
+Passed in Claude's Linux workspace, and on Benn's PC on 29 October 2026 (PowerShell 7.6.9, all 7 checks).
+
+### 2c. Pester unit and regression tests (planned: version 2.5, stage 2)
 
 Unit and regression tests with Pester, runnable on Benn's PC and in Claude's workspace. They include whole-run tests that replace `Invoke-Tool` with a mock, so they can eventually replace the Linux-only simulation. See docs/PLAN-2.5.md.
 
@@ -74,12 +90,13 @@ Real Windows processes on Benn's PC that touch nothing in the system: `cmd.exe /
    pwsh -NoProfile -ExecutionPolicy Bypass -File "C:\Scripts\WindowsHealthMonitor\WindowsHealthMonitor.ps1"
    ```
 3. On a healthy PC, expect in Summary.txt (about 2 minutes on Benn's PC):
+   - `Windows Health Monitor <version> started on NEW (...)`, with the version being tested;
    - `PowerShell: PowerShell 7.6.9 (...\pwsh.exe).`
    - `Windows drive (C:) has ... free of ... (..% free).`
    - `Component store state: Healthy.`
    - `SFC /verifyonly result: Clean.`
    - `OUTCOME [0]: No problems found. ...`
-4. Check the report folder holds Summary.txt, Result.json, Full-Transcript.txt, 1-DISM-ScanHealth.txt (about 10 lines) and 4-SFC-VerifyOnly.txt.
+4. Check the report folder holds Summary.txt, Result.json, Full-Transcript.txt, 1-DISM-ScanHealth.txt (about 10 lines) and 4-SFC-VerifyOnly.txt. From 2.5.0-dev.1, Result.json starts with `"SchemaVersion": 1` after the `Tool` line.
 5. Check Event Viewer:
    ```powershell
    Get-WinEvent -FilterHashtable @{ LogName = 'Application'; ProviderName = 'WindowsHealthMonitor' } -MaxEvents 3 |
@@ -98,6 +115,7 @@ Real Windows processes on Benn's PC that touch nothing in the system: `cmd.exe /
 | 29 Oct 2026 10:11 | 2.2.0 | 5.1 then 7.6.9 | Healthy, hand-over | 0 |
 | 29 Oct 2026 11:00 | 2.4.0 | 5.1 | Healthy | 0; new PowerShell line and Result.json correct; 2 min 6 s |
 | 29 Oct 2026 11:31 | 2.4.0 | 7.6.9 (Microsoft Store), started with `pwsh -File` | Healthy | 0; 2 min 2 s; Result.json records Edition Core and the pwsh.exe path. **The known-good baseline** for version 2.5 and for any change of AI tool |
+| 29 Oct 2026 13:19 | 2.5.0-dev.1 | 7.6.9 (Microsoft Store), started with `pwsh -File` | Healthy | 0; 2 min 9 s. Compared with the baseline: the same report files; the DISM and SFC report text identical; Summary.txt differs only in version, times and free space; Result.json identical apart from ScriptVersion and the new SchemaVersion 1 |
 
 Not yet confirmed for 2.4.0: the Event Viewer entry, the pop-up, and a second copy stopping with code 10 (level 4, steps 5 to 7).
 

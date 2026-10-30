@@ -52,6 +52,16 @@ Automatically check Windows for component-store corruption using DISM, repair it
 - `.gitignore` leaves out `Logs\`. `.gitattributes` keeps the LF line endings that every text file already used, so Git never converts them. The bash test files need LF, and LF also avoids confusing warnings.
 - Benn ran each step himself; Claude rehearsed them first on a temporary copy, then checked the result.
 
+### Version 2.5.0-dev.1: making the script testable (29 October 2026)
+
+- **The problem:** until 2.4.0 the main section sat loose at the end of the file, so loading the script always started a health check, and `#requires -RunAsAdministrator` stopped it loading at all in a normal window. No function could be tested on its own.
+- **The change:** the main section became `Invoke-WindowsHealthMonitor`, and the last lines call it unless `$MyInvocation.InvocationName` is `.` (dot-sourcing). The administrator check moved into `Test-IsAdministrator`. The DISM repair options moved into `Get-RestoreHealthArgument`. Result.json gained `SchemaVersion = 1`.
+- **Why `return`, not `exit`, inside the function:** `exit` would also close a test session that called the function. The busy branch (code 10) now stores its result in `$script:Outcome` like every other path.
+- **Why no reports when administrator rights are missing:** 2.4.0 wrote none either (PowerShell refused to start the script), and creating the report folder or the event source may itself need the missing rights.
+- **A test that could not fail (found and fixed the same day):** the first version of `Tests\Test-DotSource.ps1` checked that the verdict was still code 1. On purpose, Claude broke the guard on a copy, and the test still passed: in a window without administrator rights, the refusal also sets code 1. The test now checks the starting message instead, and fails as it should on the broken copy. *Lesson: prove that a test can fail before trusting it when it passes.*
+- **Observed in PowerShell 7.6.9 (Claude's Linux workspace):** `exit` inside a dot-sourced script returns to the script that dot-sourced it; it does not close PowerShell.
+- **Tested:** static checks; the 12 simulated scenarios; `Test-DotSource.ps1`, also on Benn's PC; a real run on Benn's PC at 13:19 (healthy, code 0), which matched the 11:31 baseline.
+
 ### Pasting problems
 
 - Pasting the script into a chat box converts `<#` to `&lt;#`, `>` to `&gt;` and web addresses into HTML links. Several "corruption" reports came from pasted copies; the files themselves were clean. Never move the script by pasting.
@@ -66,6 +76,7 @@ Automatically check Windows for component-store corruption using DISM, repair it
 - One run at a time; reports kept 90 days; optional DISM repair source (-RepairSource).
 - The project's rules are tool-neutral (PROJECT.md, AGENTS.md), so that no single AI tool is required; the tests and real Windows runs are the referee.
 - Every repair confirmed; the verdict starts as "failed"; the script file stays plain ASCII while it still supports 5.1.
+- Loading is not running: dot-sourcing the script defines everything and runs nothing, so tests can call functions one at a time (2.5.0-dev.1).
 
 ## Known environment
 
@@ -75,7 +86,7 @@ Automatically check Windows for component-store corruption using DISM, repair it
 
 ## Open items
 
-- Build the rest of version 2.5 (docs/PLAN-2.5.md): testability, Pester tests, Windows integration tests, PowerShell 7 only, scheduled task, release. Decide D1 to D4 before stage 4.
+- Build the rest of version 2.5 (docs/PLAN-2.5.md): testability (done: 2.5.0-dev.1), Pester tests, Windows integration tests, PowerShell 7 only, scheduled task, release. Decide D1 to D4 before stage 4.
 - A private GitHub repository can follow the local Git repository later, if wanted.
 - Change of AI tool: follow docs/AI-MIGRATION.md; no replacement tool chosen yet.
 - The repair paths have been simulated but not yet run on Windows; they will be tested for real the first time Windows needs a repair.

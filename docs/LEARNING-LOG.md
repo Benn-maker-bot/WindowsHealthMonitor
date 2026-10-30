@@ -35,6 +35,13 @@ Only you can say when something is "comfortable", so that column changes only wh
 | Git: repository, staging (`git add`), commit, history (`git log`) | Stage 0: you created the repository and made the baseline commit | Practised |
 | `.gitignore` and why run reports are left out of Git | Stage 0 | Introduced |
 | Checking evidence before accepting a claim | You questioned the "PowerShell 5.1" statement; the transcript proved it | Practised |
+| Reading a change before committing it (`git diff`, `git diff --stat`) | Your second commit, `b325a72` | Practised |
+| Keeping tools up to date, and what the ".windows.N" part of a Git version means | Updating Git for Windows | Practised |
+| Separating "define" from "run": the main section as a function | `Invoke-WindowsHealthMonitor`; stage 1 | Introduced |
+| Dot-sourcing (`. .\script.ps1`) and `$MyInvocation.InvocationName` | Section 7 of the script; `Tests\Test-DotSource.ps1` | Introduced |
+| `return` versus `exit` inside a function | The code-10 branch in stage 1 | Introduced |
+| Checking administrator rights in code (`WindowsPrincipal`, `IsInRole`) | `Test-IsAdministrator` | Introduced |
+| A test that can fail: checking a test catches a deliberately broken version | `Test-DotSource.ps1` (Claude broke the guard on a copy; the test failed) | Introduced |
 
 ## Debugging case studies from this project
 
@@ -50,13 +57,13 @@ Each one is written up in PROJECT-HISTORY.md:
 - **PowerShell 7 and Windows PowerShell 5.1:** used.
 - **Event Viewer, `Get-WinEvent`:** introduced.
 - **PSScriptAnalyzer:** used by Claude.
-- **Git:** used (stage 0, 29 October 2026).
+- **Git:** used (stage 0, 29 October 2026). Git for Windows updated the same day.
 - **Coming in version 2.5:** Pester and Task Scheduler.
 
 ## Suggested next learning objectives (version 2.5)
 
-1. **Stage 0:** Git basics: repository, commit, history (done). Still to practise: seeing a change with `git diff`, and undoing one with `git restore`.
-2. **Stage 1:** dot-sourcing, and separating "define" from "run".
+1. **Stage 0:** Git basics: repository, commit, history, `git diff` (done). Still to practise: undoing a change with `git restore`.
+2. **Stage 1:** dot-sourcing, and separating "define" from "run" (introduced; you will run `Test-DotSource.ps1` yourself).
 3. **Stage 2:** Pester: `Describe`, `It`, `Should`, `Mock`. Optional: write one test yourself.
 4. **Stage 3:** process trees and exit codes, seen with real Windows programs.
 5. **Stage 5:** Task Scheduler accounts and sessions.

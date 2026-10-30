@@ -2,6 +2,19 @@
 
 Newest first. Dates are UK dates.
 
+## 2.5.0-dev.1 (29 October 2026, stage 1 of PLAN-2.5)
+
+The script is now testable. What DISM and SFC do, and the result codes, are unchanged.
+
+- **Changed:** the main section is now a function, `Invoke-WindowsHealthMonitor`. The last lines of the file call it, unless the script is being dot-sourced (`. .\WindowsHealthMonitor.ps1`). Tests can therefore load every function without running a health check.
+- **Changed:** `#requires -RunAsAdministrator` is replaced by a check at the start of a run (new function `Test-IsAdministrator`). Without administrator rights, a run still stops at once with result code 1, and now says how to fix it.
+- **Changed:** a second run that finds the lock taken now leaves code 10 in `$script:Outcome` instead of calling `exit 10` from inside the function. The exit code, message and Event Viewer entry (ID 1010) are the same.
+- **New:** `Get-RestoreHealthArgument` builds the DISM /RestoreHealth options, including `/Source:` and `/LimitAccess`. The options themselves are unchanged.
+- **New:** Result.json has a `SchemaVersion` field (1), so later changes to its layout can be detected.
+- **New:** `Tests\Test-DotSource.ps1`, a safe check that runs on Windows without administrator rights. The simulation harness now takes the script and a mode (`file` or `dot`).
+- **Tested:** static checks; all 12 simulated scenarios give the same result codes as 2.4.0; dot-sourcing runs nothing. On Benn's PC on 29 October 2026: `Test-DotSource.ps1` passed, and a real run at 13:19 in PowerShell 7.6.9 was healthy (code 0) and matched the 11:31 baseline.
+- **Not yet updated:** the Word guide still describes 2.4.0. It is updated at release (stage 6).
+
 ## 2.4.0 (29 October 2026)
 
 - **Removed** the PowerShell 7 hand-over, version check, download and installer (about 460 lines, with their comments). The script no longer needs internet access and installs nothing.

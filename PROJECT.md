@@ -54,7 +54,7 @@ The **master copy** is `C:\Scripts\WindowsHealthMonitor\` on Benn's PC (not OneD
 | `AGENTS.md` | The operating contract for AI assistants |
 | `CLAUDE.md` | A short pointer to the two files above, read automatically by Claude Code |
 | `docs\` | PROJECT-HISTORY, TESTING, CHANGELOG, PLAN-2.5, AI-MIGRATION, LEARNING-LOG |
-| `Tests\` | Test files (currently a simulation harness that runs only in Claude's Linux workspace) |
+| `Tests\` | Test files: `Test-DotSource.ps1` (runs on Windows) and a simulation harness that runs only in Claude's Linux workspace |
 | `Logs\` | One dated folder per run, kept 90 days |
 | `Archive\` | Earlier versions and superseded documents |
 | `.git\` (hidden) | The Git repository: the full history. Never edit it by hand |
@@ -64,6 +64,7 @@ Copies kept elsewhere, such as in a Claude Project, are reference copies only. R
 
 ## 4. How a run works
 
+0. **Start:** the last lines of the script call `Invoke-WindowsHealthMonitor`, unless the script is being dot-sourced by a test (since 2.5.0-dev.1). Without administrator rights the run stops at once with result code 1.
 1. **Pre-flight:**
    - take the single-run lock;
    - create the report folder;
@@ -104,7 +105,7 @@ Never use code 0 for an unrecognised or unconfirmed result, even if a tool retur
 
 ## 6. Reliability rules (protected behaviour)
 
-Each rule exists because of a real bug, described in docs/PROJECT-HISTORY.md. Do not "simplify" any of them without understanding that history, and without tests that prove the protection still works.
+Each rule exists because of a real bug or a design decision, described in docs/PROJECT-HISTORY.md. Do not "simplify" any of them without understanding that history, and without tests that prove the protection still works.
 
 1. **DISM false positive.** Test "No component store corruption detected" before any looser corruption pattern.
 2. **DISM exit codes.** Check DISM's exit code (0, or 3010 = success with restart needed) before trusting its text.
@@ -120,6 +121,7 @@ Each rule exists because of a real bug, described in docs/PROJECT-HISTORY.md. Do
 12. **Fail visibly.** The verdict starts as "failed"; an unrecognised result is code 5.
 13. **Always report.** The reports, Event Viewer entry and lock release must happen even after an unexpected error.
 14. **Identify every report.** Every report records the script version and the PowerShell version, edition and path.
+15. **Loading is not running.** Dot-sourcing the script must never start a health check, and `Invoke-WindowsHealthMonitor` must never call `exit` (the last lines turn `$script:Outcome` into the exit code). Tests depend on both. `Tests\Test-DotSource.ps1` checks the first.
 
 ## 7. Technical rules learned the hard way
 
@@ -176,7 +178,7 @@ Do not rewrite working code for style. Prefer small, reviewable changes.
 Four levels, in order. Only level 4 counts as "tested on Windows". Details are in docs/TESTING.md.
 
 1. **Static checks:** the parser and PSScriptAnalyzer.
-2. **Unit tests and simulations:** sample or simulated data. Pester is planned for version 2.5.
+2. **Unit tests and simulations:** sample or simulated data. Tests load the script by dot-sourcing it. Pester is planned for version 2.5.
 3. **Integration tests:** harmless real Windows programs, such as cmd.exe and ping.exe. Planned for version 2.5.
 4. **Real DISM and SFC runs** on Benn's PC.
 
