@@ -1,0 +1,23 @@
+{
+    "cSpell.words": [
+        "behaviour",
+        "DISM",
+        "verifyonly",
+        "scannow",
+        "recognised",
+        "pscustomobject",
+        "unrecognised",
+        "recognises",
+        "FEFF",
+        "taskkill",
+        "parameterless",
+        "HKLM",
+        "recognisable",
+        "recognise"
+    ],
+    "code-runner.executorMap": {
+        "powershell": "pwsh -NoProfile -ExecutionPolicy Bypass -File"
+    },
+    "code-runner.runInTerminal": true,
+    "code-runner.ignoreSelection": true
+}

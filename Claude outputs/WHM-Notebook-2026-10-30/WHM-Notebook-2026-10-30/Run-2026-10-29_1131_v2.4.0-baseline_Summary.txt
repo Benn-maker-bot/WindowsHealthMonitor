@@ -1,0 +1,12 @@
+2026-10-29 11:31:13  Windows Health Monitor 2.4.0 started on NEW (Microsoft Windows 11 Pro 26H2, build 26300.9711).
+2026-10-29 11:31:13  SFC mode: VerifyThenRepair. Reports: C:\Scripts\WindowsHealthMonitor\Logs\2026-10-29_113113
+2026-10-29 11:31:13  PowerShell: PowerShell 7.6.9 (C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.9.0_x64__8wekyb3d8bbwe\pwsh.exe).
+2026-10-29 11:31:14  Windows drive (C:) has 1.32 TB free of 1.82 TB (72.8% free). That is plenty of working space for DISM repairs.
+2026-10-29 11:31:14  Running DISM /ScanHealth...
+2026-10-29 11:32:18  DISM /ScanHealth finished in 1 min 4 s with exit code 0 (0x00000000).
+2026-10-29 11:32:18  Component store state: Healthy.
+2026-10-29 11:32:18  Running SFC /verifyonly...
+2026-10-29 11:33:15  SFC /verifyonly finished in 58 s with exit code 0 (0x00000000).
+2026-10-29 11:33:15  SFC /verifyonly result: Clean.
+2026-10-29 11:33:15  OUTCOME [0]: No problems found. The component store is healthy and SFC found no integrity violations.
+2026-10-29 11:33:15  Finished in 2 min 2 s with result code 0.

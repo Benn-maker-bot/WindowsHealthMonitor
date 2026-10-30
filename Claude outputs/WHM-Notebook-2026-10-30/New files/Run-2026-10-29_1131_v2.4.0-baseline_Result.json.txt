@@ -1,0 +1,81 @@
+{
+  "Tool": "Windows Health Monitor",
+  "ScriptVersion": "2.4.0",
+  "Computer": "NEW",
+  "OperatingSystem": "Microsoft Windows 11 Pro 26H2, build 26300.9711",
+  "Started": "2026-10-29T11:31:13",
+  "Finished": "2026-10-29T11:33:15",
+  "DurationSeconds": 122,
+  "RunContext": {
+    "User": "NEW\\bennh",
+    "Is64BitProcess": true,
+    "SessionId": 4,
+    "ScriptPath": "C:\\Scripts\\WindowsHealthMonitor\\WindowsHealthMonitor.ps1"
+  },
+  "PowerShell": {
+    "Version": "7.6.9",
+    "Edition": "Core",
+    "Path": "C:\\Program Files\\WindowsApps\\Microsoft.PowerShell_7.6.9.0_x64__8wekyb3d8bbwe\\pwsh.exe"
+  },
+  "ExitCode": 0,
+  "Severity": "Information",
+  "Message": "No problems found. The component store is healthy and SFC found no integrity violations.",
+  "Parameters": {
+    "SfcMode": "VerifyThenRepair",
+    "RepairSource": "",
+    "IgnorePendingRestart": false
+  },
+  "RestartRecommended": false,
+  "State": {
+    "DismInitialState": "Healthy",
+    "DismRepairAttempted": false,
+    "DismConfirmedState": "Healthy",
+    "SfcInitialState": "Clean",
+    "SfcRepairAttempted": false,
+    "SfcConfirmedState": "Clean",
+    "RestartRecommended": false
+  },
+  "PendingRestartReasons": [],
+  "Notes": [],
+  "WindowsDrive": {
+    "Drive": "C:",
+    "FreeGB": 1356.3,
+    "TotalGB": 1861.9,
+    "FreePercent": 72.8
+  },
+  "Steps": [
+    {
+      "Time": "2026-10-29T11:32:18",
+      "Step": "DISM /ScanHealth",
+      "Result": "Healthy",
+      "Detail": "Exit code 0x00000000"
+    },
+    {
+      "Time": "2026-10-29T11:33:15",
+      "Step": "SFC /verifyonly",
+      "Result": "Clean",
+      "Detail": "Exit code 0x00000000"
+    }
+  ],
+  "ToolRuns": [
+    {
+      "Name": "DISM /ScanHealth",
+      "ExitCode": 0,
+      "ExitCodeHex": "0x00000000",
+      "TimedOut": false,
+      "StillRunning": false,
+      "DurationSeconds": 64,
+      "OutputFile": "C:\\Scripts\\WindowsHealthMonitor\\Logs\\2026-10-29_113113\\1-DISM-ScanHealth.txt"
+    },
+    {
+      "Name": "SFC /verifyonly",
+      "ExitCode": 0,
+      "ExitCodeHex": "0x00000000",
+      "TimedOut": false,
+      "StillRunning": false,
+      "DurationSeconds": 58,
+      "OutputFile": "C:\\Scripts\\WindowsHealthMonitor\\Logs\\2026-10-29_113113\\4-SFC-VerifyOnly.txt"
+    }
+  ],
+  "ReportFolder": "C:\\Scripts\\WindowsHealthMonitor\\Logs\\2026-10-29_113113"
+}

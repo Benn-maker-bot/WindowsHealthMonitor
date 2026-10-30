@@ -1,0 +1,400 @@
+{
+  "schema": "whm-notebook-state",
+  "schemaVersion": 1,
+  "snapshot": {
+    "takenAt": "2026-10-30T04:27:00+00:00",
+    "takenBy": "Claude (claude.ai), read-only",
+    "source": "C:\\Scripts\\WindowsHealthMonitor on Benn's PC (computer name NEW)",
+    "authority": "The PC folder is the master. Every file in this Notebook is a reference copy; if they disagree, the PC is right.",
+    "replaces": "All earlier Windows Health Monitor files in this Notebook",
+    "copiedByteForByte": true,
+    "renames": ".ps1 files end in .txt; run reports carry date and version in their names"
+  },
+  "script": {
+    "name": "WindowsHealthMonitor.ps1",
+    "version": "2.5.0-dev.1",
+    "resultSchemaVersion": 1,
+    "pcPath": "C:\\Scripts\\WindowsHealthMonitor\\WindowsHealthMonitor.ps1",
+    "sha256": "56e10b82831e0da52478f0d52f8e37a851a76f3b2a325adb4897a4ce6f573be6"
+  },
+  "git": {
+    "branch": "main",
+    "commits": [
+      {
+        "hash": "4239d2b",
+        "date": "2026-10-29T12:08:27+00:00",
+        "message": "Baseline: Windows Health Monitor 2.4.0, known-good run 29 Oct 2026 11:31 (PowerShell 7.6.9)"
+      },
+      {
+        "hash": "b325a72",
+        "date": "2026-10-29T12:17:17+00:00",
+        "message": "Docs: record stage 0 (Git) as done"
+      }
+    ],
+    "head": "b325a72",
+    "stage1Committed": false,
+    "uncommittedModified": [
+      "PROJECT.md",
+      "Tests/README.md",
+      "Tests/run-scenario.sh",
+      "WindowsHealthMonitor.ps1",
+      "docs/AI-MIGRATION.md",
+      "docs/CHANGELOG.md",
+      "docs/LEARNING-LOG.md",
+      "docs/PLAN-2.5.md",
+      "docs/PROJECT-HISTORY.md",
+      "docs/TESTING.md"
+    ],
+    "untracked": [
+      "Tests/Test-DotSource.ps1",
+      "Tests/run-all.sh",
+      "WindowsHealthMonitor - Copy.txt"
+    ],
+    "note": "PLAN-2.5.md names the stage 1 commit ('Stage 1: make the script testable (2.5.0-dev.1)'), but it has not been made yet. Recommended: make it before any further change. 'WindowsHealthMonitor - Copy.txt' is a stray copy of the script in the master folder."
+  },
+  "plan": {
+    "document": "docs/PLAN-2.5.md",
+    "stages": [
+      {
+        "stage": 0,
+        "name": "Safety net: Git",
+        "status": "done",
+        "date": "2026-10-29"
+      },
+      {
+        "stage": 1,
+        "name": "Make the script testable",
+        "status": "done, tested, not yet committed",
+        "version": "2.5.0-dev.1",
+        "date": "2026-10-29"
+      },
+      {
+        "stage": 2,
+        "name": "Pester unit and regression tests",
+        "status": "not started"
+      },
+      {
+        "stage": 3,
+        "name": "Integration tests with safe Windows programs",
+        "status": "not started"
+      },
+      {
+        "stage": 4,
+        "name": "PowerShell 7 only",
+        "status": "not started",
+        "needsDecision": "D4"
+      },
+      {
+        "stage": 5,
+        "name": "Scheduled task",
+        "status": "not started",
+        "needsDecision": [
+          "D1",
+          "D2",
+          "D3"
+        ]
+      },
+      {
+        "stage": 6,
+        "name": "Release 2.5.0",
+        "status": "not started"
+      }
+    ],
+    "decisions": [
+      {
+        "id": "D0",
+        "topic": "Local Git repository",
+        "status": "decided: yes",
+        "date": "2026-10-29"
+      },
+      {
+        "id": "D1",
+        "topic": "How the scheduled task gets PowerShell 7",
+        "status": "open",
+        "recommendedDefault": "Install PowerShell 7 for the whole computer with WinGet; run the task as SYSTEM"
+      },
+      {
+        "id": "D2",
+        "topic": "When it runs",
+        "status": "open",
+        "recommendedDefault": "Weekly, Sunday 12:00; run as soon as possible after a missed start"
+      },
+      {
+        "id": "D3",
+        "topic": "How Benn hears about problems",
+        "status": "open",
+        "recommendedDefault": "A short message at next sign-in, only after a result code other than 0"
+      },
+      {
+        "id": "D4",
+        "topic": "Drop Windows PowerShell 5.1 support",
+        "status": "open",
+        "recommendedDefault": "Yes; require PowerShell 7.6"
+      }
+    ]
+  },
+  "runs": [
+    {
+      "role": "known-good baseline",
+      "reportFolder": "C:\\Scripts\\WindowsHealthMonitor\\Logs\\2026-10-29_113113",
+      "scriptVersion": "2.4.0",
+      "schemaVersion": null,
+      "started": "2026-10-29T11:31:13",
+      "finished": "2026-10-29T11:33:15",
+      "durationSeconds": 122,
+      "exitCode": 0,
+      "severity": "Information",
+      "powerShell": {
+        "version": "7.6.9",
+        "edition": "Core",
+        "path": "C:\\Program Files\\WindowsApps\\Microsoft.PowerShell_7.6.9.0_x64__8wekyb3d8bbwe\\pwsh.exe"
+      },
+      "state": {
+        "DismInitialState": "Healthy",
+        "DismConfirmedState": "Healthy",
+        "SfcInitialState": "Clean",
+        "SfcConfirmedState": "Clean",
+        "RestartRecommended": false
+      },
+      "notebookFilesPrefix": "Run-2026-10-29_1131_v2.4.0-baseline_"
+    },
+    {
+      "role": "latest real run",
+      "reportFolder": "C:\\Scripts\\WindowsHealthMonitor\\Logs\\2026-10-29_131948",
+      "scriptVersion": "2.5.0-dev.1",
+      "schemaVersion": 1,
+      "started": "2026-10-29T13:19:48",
+      "finished": "2026-10-29T13:21:57",
+      "durationSeconds": 129,
+      "exitCode": 0,
+      "severity": "Information",
+      "powerShell": {
+        "version": "7.6.9",
+        "edition": "Core",
+        "path": "C:\\Program Files\\WindowsApps\\Microsoft.PowerShell_7.6.9.0_x64__8wekyb3d8bbwe\\pwsh.exe"
+      },
+      "state": {
+        "DismInitialState": "Healthy",
+        "DismConfirmedState": "Healthy",
+        "SfcInitialState": "Clean",
+        "SfcConfirmedState": "Clean",
+        "RestartRecommended": false
+      },
+      "notebookFilesPrefix": "Run-2026-10-29_1319_v2.5.0-dev.1_"
+    }
+  ],
+  "testsRecordedFor_2.5.0-dev.1": {
+    "source": "docs/TESTING.md and docs/CHANGELOG.md (not re-run for this snapshot)",
+    "level1_static": "passed",
+    "level2_simulations": "all 12 scenarios matched 2.4.0's result codes (Linux simulation, not Windows)",
+    "level2_TestDotSource": "passed on Benn's PC, all 7 checks",
+    "level3_integration": "not yet built (stage 3)",
+    "level4_realRun": "2026-10-29 13:19, healthy, code 0, matched the baseline",
+    "unconfirmedOnWindows": [
+      "Event Viewer entry",
+      "Pop-up",
+      "Second copy stopping with code 10 (the code-10 branch was rewritten in stage 1)"
+    ]
+  },
+  "nextWorkItem": {
+    "version": "2.5.0-dev.2",
+    "agreedBy": [
+      "Claude review, 30 Oct 2026",
+      "Copilot corrected assessment, 30 Oct 2026"
+    ],
+    "problem": "Top-level $ErrorActionPreference = 'Stop' and Set-StrictMode -Version 2.0 run in the caller's scope when the script is dot-sourced, changing the caller's settings (console, Pester, VS Code F5, which dot-sources by default).",
+    "acceptanceCriterion": "Loading the script does not change the caller's preference variables or strict mode. Loading still defines parameters, settings and functions.",
+    "steps": [
+      "Commit stage 1 on its own",
+      "Add two checks to Tests\\Test-DotSource.ps1: $ErrorActionPreference unchanged; strict mode not leaked",
+      "Run them against unchanged 2.5.0-dev.1 and record that they fail",
+      "Move the two lines to the start of Invoke-WindowsHealthMonitor, before the administrator check",
+      "Correct the .DESCRIPTION pre-flight order (comment only)",
+      "Set $ScriptVersion to 2.5.0-dev.2",
+      "Run parser and PSScriptAnalyzer checks, Test-DotSource.ps1 and all 12 simulations",
+      "One elevated healthy run in PowerShell 7, plus a second copy started during it, expecting code 10",
+      "Update CHANGELOG, PROJECT-HISTORY, TESTING, PROJECT.md rule 15 and LEARNING-LOG",
+      "Inspect git diff, then commit"
+    ],
+    "deferredToStage2": "Load the script afresh before each whole-run Pester test; add Initialize-RunState only if that proves impractical."
+  },
+  "superseded": [
+    {
+      "item": "Copilot's ZIP with the isolation fix",
+      "status": "draft sketch only, withdrawn; do not apply"
+    },
+    {
+      "item": "Earlier Notebook copies of PLAN-2.5, CHANGELOG, TESTING, PROJECT-HISTORY, LEARNING-LOG",
+      "status": "described 2.4.0; replaced"
+    },
+    {
+      "item": "CLAUDE 1.md",
+      "status": "duplicate; replaced by CLAUDE.md"
+    },
+    {
+      "item": "WindowsHealthMonitor - Copy.txt",
+      "status": "same bytes as the script; use WindowsHealthMonitor.ps1.txt"
+    }
+  ],
+  "notIncluded": [
+    {
+      "item": "WindowsHealthMonitor-Guide.docx",
+      "reason": "describes 2.4.0 by design; updated at release (stage 6)"
+    },
+    {
+      "item": "Tests\\mock-dism.sh, mock-sfc.sh, run-scenario.sh, run-all.sh",
+      "reason": "run only in Claude's Linux workspace; replaced by Pester in stage 2"
+    },
+    {
+      "item": "Archive\\, older Logs folders, .git\\",
+      "reason": "history, not current state"
+    }
+  ],
+  "verify": "In PowerShell 7: (Get-FileHash '<pcPath>').Hash. Compare with sha256 below, ignoring letter case.",
+  "files": [
+    {
+      "notebookName": "PROJECT.md",
+      "pcPath": "C:\\Scripts\\WindowsHealthMonitor\\PROJECT.md",
+      "description": "Project rules",
+      "bytes": 11551,
+      "lastModifiedUtc": "2026-10-29T12:50:45Z",
+      "sha256": "9b1936a28c27945e399b9b552b23ae7d7fccbff783bef3b412140181f44959d0"
+    },
+    {
+      "notebookName": "AGENTS.md",
+      "pcPath": "C:\\Scripts\\WindowsHealthMonitor\\AGENTS.md",
+      "description": "How any AI assistant must work",
+      "bytes": 5886,
+      "lastModifiedUtc": "2026-10-29T11:52:48Z",
+      "sha256": "419cbeb08c6f811b465486bbae1ed8241971f32df70814697d96cc7a367e2267"
+    },
+    {
+      "notebookName": "CLAUDE.md",
+      "pcPath": "C:\\Scripts\\WindowsHealthMonitor\\CLAUDE.md",
+      "description": "Pointer for Claude Code",
+      "bytes": 924,
+      "lastModifiedUtc": "2026-10-29T11:52:47Z",
+      "sha256": "66642275c26cc7b1fc77ba817e4635bfa40e17f8969ff10af00b5e8afd7ef285"
+    },
+    {
+      "notebookName": "WindowsHealthMonitor.ps1.txt",
+      "pcPath": "C:\\Scripts\\WindowsHealthMonitor\\WindowsHealthMonitor.ps1",
+      "description": "The script, 2.5.0-dev.1",
+      "bytes": 66904,
+      "lastModifiedUtc": "2026-10-29T12:50:44Z",
+      "sha256": "56e10b82831e0da52478f0d52f8e37a851a76f3b2a325adb4897a4ce6f573be6"
+    },
+    {
+      "notebookName": "PLAN-2.5.md",
+      "pcPath": "C:\\Scripts\\WindowsHealthMonitor\\docs\\PLAN-2.5.md",
+      "description": "Plan for version 2.5",
+      "bytes": 14745,
+      "lastModifiedUtc": "2026-10-29T13:24:19Z",
+      "sha256": "6f3ab2f6e7be442196b09c90ed251f7297d7007d9daa016ac6f3a673c99bbd70"
+    },
+    {
+      "notebookName": "CHANGELOG.md",
+      "pcPath": "C:\\Scripts\\WindowsHealthMonitor\\docs\\CHANGELOG.md",
+      "description": "Changes by version",
+      "bytes": 5327,
+      "lastModifiedUtc": "2026-10-29T13:24:19Z",
+      "sha256": "922b150f5c03b3624ed16ed9d9eca04d13700e4a115c3165c4473d30447abbb4"
+    },
+    {
+      "notebookName": "PROJECT-HISTORY.md",
+      "pcPath": "C:\\Scripts\\WindowsHealthMonitor\\docs\\PROJECT-HISTORY.md",
+      "description": "Bugs, lessons and decisions",
+      "bytes": 9127,
+      "lastModifiedUtc": "2026-10-29T13:24:19Z",
+      "sha256": "4e67aab7eaa54cd741b5dfc3a33066152589981c3e1df38c252eeba583f6bab0"
+    },
+    {
+      "notebookName": "TESTING.md",
+      "pcPath": "C:\\Scripts\\WindowsHealthMonitor\\docs\\TESTING.md",
+      "description": "Test levels, procedures and record of real runs",
+      "bytes": 8722,
+      "lastModifiedUtc": "2026-10-29T13:24:20Z",
+      "sha256": "8d344ee110a0fade2ef7427b092464aca62f5f6e1fc7015d9821552267210a7b"
+    },
+    {
+      "notebookName": "LEARNING-LOG.md",
+      "pcPath": "C:\\Scripts\\WindowsHealthMonitor\\docs\\LEARNING-LOG.md",
+      "description": "Learning record",
+      "bytes": 4714,
+      "lastModifiedUtc": "2026-10-29T12:50:45Z",
+      "sha256": "79ad412edbfff5bc4dcc77005d5b309702424d019e0ce2d93454dcb2cc57b948"
+    },
+    {
+      "notebookName": "AI-MIGRATION.md",
+      "pcPath": "C:\\Scripts\\WindowsHealthMonitor\\docs\\AI-MIGRATION.md",
+      "description": "Plan for a possible change of AI tool",
+      "bytes": 6193,
+      "lastModifiedUtc": "2026-10-29T13:24:19Z",
+      "sha256": "4f505cc612a114995e83934a6276b8e78ef05e61954115e1b8d4fbe9bb57eacd"
+    },
+    {
+      "notebookName": "Tests-README.md",
+      "pcPath": "C:\\Scripts\\WindowsHealthMonitor\\Tests\\README.md",
+      "description": "What the test files do",
+      "bytes": 1768,
+      "lastModifiedUtc": "2026-10-29T12:50:46Z",
+      "sha256": "b0cd882187221d2f76203148110972dd9b72e7248f22605c973d786154b40234"
+    },
+    {
+      "notebookName": "Test-DotSource.ps1.txt",
+      "pcPath": "C:\\Scripts\\WindowsHealthMonitor\\Tests\\Test-DotSource.ps1",
+      "description": "Windows-safe loading test",
+      "bytes": 2365,
+      "lastModifiedUtc": "2026-10-29T12:50:47Z",
+      "sha256": "5e5db382694cf08f02638df38120cda5cf54c1c82dfaaa45b9323a1b6e5817ee"
+    },
+    {
+      "notebookName": "Run-2026-10-29_1131_v2.4.0-baseline_Summary.txt",
+      "pcPath": "C:\\Scripts\\WindowsHealthMonitor\\Logs\\2026-10-29_113113\\Summary.txt",
+      "description": "Run report: Summary",
+      "bytes": 1076,
+      "lastModifiedUtc": "2026-10-29T11:33:15Z",
+      "sha256": "bf186563b604e6373beca54e1d2838ee0436128d6544baf8c47fc9d74b876878"
+    },
+    {
+      "notebookName": "Run-2026-10-29_1131_v2.4.0-baseline_Result.json",
+      "pcPath": "C:\\Scripts\\WindowsHealthMonitor\\Logs\\2026-10-29_113113\\Result.json",
+      "description": "Run report: Result",
+      "bytes": 2395,
+      "lastModifiedUtc": "2026-10-29T11:33:15Z",
+      "sha256": "be49c514829f231779eab589a757178a62e6ee69a95f9bbd17f2559f49f123cd"
+    },
+    {
+      "notebookName": "Run-2026-10-29_1131_v2.4.0-baseline_Full-Transcript.txt",
+      "pcPath": "C:\\Scripts\\WindowsHealthMonitor\\Logs\\2026-10-29_113113\\Full-Transcript.txt",
+      "description": "Run report: Full-Transcript",
+      "bytes": 1877,
+      "lastModifiedUtc": "2026-10-29T11:33:15Z",
+      "sha256": "fb3b048a8cdfc69a335900909a5d9037db9f65941bec384a05982f18b814c5c0"
+    },
+    {
+      "notebookName": "Run-2026-10-29_1319_v2.5.0-dev.1_Summary.txt",
+      "pcPath": "C:\\Scripts\\WindowsHealthMonitor\\Logs\\2026-10-29_131948\\Summary.txt",
+      "description": "Run report: Summary",
+      "bytes": 1087,
+      "lastModifiedUtc": "2026-10-29T13:21:57Z",
+      "sha256": "295ae22a139e9504bc81110eb835ea94d71130d421493d51636b4c56736cb299"
+    },
+    {
+      "notebookName": "Run-2026-10-29_1319_v2.5.0-dev.1_Result.json",
+      "pcPath": "C:\\Scripts\\WindowsHealthMonitor\\Logs\\2026-10-29_131948\\Result.json",
+      "description": "Run report: Result",
+      "bytes": 2424,
+      "lastModifiedUtc": "2026-10-29T13:21:57Z",
+      "sha256": "de47cdd27521f8202ef582d26acebf8e2f3563c8728a429fc524b00cc78f2d2f"
+    },
+    {
+      "notebookName": "Run-2026-10-29_1319_v2.5.0-dev.1_Full-Transcript.txt",
+      "pcPath": "C:\\Scripts\\WindowsHealthMonitor\\Logs\\2026-10-29_131948\\Full-Transcript.txt",
+      "description": "Run report: Full-Transcript",
+      "bytes": 1888,
+      "lastModifiedUtc": "2026-10-29T13:21:57Z",
+      "sha256": "a51c9a311963ee34fba39a859d5c2627bae8b7595d247c589fd2d883c791643c"
+    }
+  ]
+}

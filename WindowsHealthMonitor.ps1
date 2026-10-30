@@ -27,8 +27,8 @@
     up to date separately, through the Microsoft Store or WinGet.
 
   Sequence
-    1. Pre-flight: single-instance lock, pending-restart check, free-space check,
-       removal of old report folders.
+    1. Pre-flight: administrator check, single-instance lock, report folder, removal of
+       old report folders, pending-restart check, free-space check.
     2. DISM /ScanHealth classifies the component store as healthy, repairable or not repairable.
     3. If repairable: DISM /RestoreHealth, then a second /ScanHealth confirms the repair.
     4. SFC: /verifyonly (read-only) when the store is healthy; /scannow only when SFC finds
@@ -154,15 +154,10 @@ param(
     [switch]$NoPopup
 )
 
-# Two safety settings for the whole script:
-#  * $ErrorActionPreference = 'Stop' makes every error stop the current step and jump to
-#    the nearest catch block, instead of printing a message and carrying on with bad data.
-#    The try/catch/finally blocks throughout the script rely on this.
-#  * Set-StrictMode -Version 2.0 makes PowerShell refuse to use a variable that was never
-#    set, or a property that does not exist, instead of quietly treating it as empty.
-#    That turns typing mistakes into clear errors rather than hidden wrong results.
-$ErrorActionPreference = 'Stop'
-Set-StrictMode -Version 2.0
+# Error handling ($ErrorActionPreference = 'Stop') and strict mode are switched on at the
+# start of Invoke-WindowsHealthMonitor (section 6), not here. Dot-sourcing runs this part of
+# the file in the caller's own scope, so setting them here would also change the settings of
+# a test, or of your own PowerShell window, that merely loads the script (2.5.0-dev.2).
 
 # --------------------------------------------------------------------------------------------
 #  Configuration
@@ -174,7 +169,7 @@ Set-StrictMode -Version 2.0
 #    $env:SystemRoot is normally C:\Windows.
 #  * The lock name starts with "Global\" so that every sign-in session shares one lock:
 #    a scheduled run and a run in your own window cannot overlap.
-$ScriptVersion = '2.5.0-dev.1'
+$ScriptVersion = '2.5.0-dev.2'
 # The layout version of Result.json. Raise it only when a field is renamed, removed or changes
 # meaning, so that a program reading old and new reports can tell them apart.
 $ResultSchemaVersion = 1
@@ -1159,6 +1154,19 @@ function Invoke-HealthCheck {
 # than running DISM twice at once. "Abandoned" means the previous holder was stopped without
 # releasing it; the lock then passes to this run, which is safe.
 function Invoke-WindowsHealthMonitor {
+
+    # Two safety settings for the whole run. They are set here, at the start of the run, so
+    # that merely loading the script changes nothing in the caller (see the note at the top
+    # of the file). Every function called from here still uses them: a function sees the
+    # variables and strict mode of whatever called it, and they end when this function ends.
+    #  * $ErrorActionPreference = 'Stop' makes every error stop the current step and jump to
+    #    the nearest catch block, instead of printing a message and carrying on with bad data.
+    #    The try/catch/finally blocks throughout the script rely on this.
+    #  * Set-StrictMode -Version 2.0 makes PowerShell refuse to use a variable that was never
+    #    set, or a property that does not exist, instead of quietly treating it as empty.
+    #    That turns typing mistakes into clear errors rather than hidden wrong results.
+    $ErrorActionPreference = 'Stop'
+    Set-StrictMode -Version 2.0
 
     # Administrator rights first, as "#requires -RunAsAdministrator" did until 2.4.0: without
     # them nothing else can work, so stop at once with code 1 and say why. No reports are

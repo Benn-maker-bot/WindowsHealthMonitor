@@ -12,8 +12,20 @@ $script = Join-Path (Split-Path -Parent $PSScriptRoot) 'WindowsHealthMonitor.ps1
 $logs   = Join-Path (Split-Path -Parent $PSScriptRoot) 'Logs'
 $before = @(Get-ChildItem -LiteralPath $logs -Directory -ErrorAction SilentlyContinue).Count
 
+# Loading must not change the caller's settings (version 2.5.0-dev.2). Record them first, so
+# the checks below can compare. Strict mode has no command that reports it, so this tests its
+# effect instead: under strict mode, reading a variable that was never set is an error.
+function Test-StrictModeOn {
+    try { $null = $notSetAnywhereForStrictModeCheck; return $false } catch { return $true }
+}
+$preferenceBefore = $ErrorActionPreference
+$strictBefore     = Test-StrictModeOn
+
 # The dot and the space: load the script into this scope without starting a health check.
 . $script
+
+$preferenceAfter = $ErrorActionPreference
+$strictAfter     = Test-StrictModeOn
 
 $failures = 0
 function Assert {
@@ -31,6 +43,8 @@ Assert 'Healthy DISM text is Healthy (the false-positive guard)'  ((Get-DismScan
 Assert 'Repair arguments without a source have no /LimitAccess'   (-not ((Get-RestoreHealthArgument) -contains '/LimitAccess'))
 Assert 'A source path with spaces is quoted, with /LimitAccess'   (((Get-RestoreHealthArgument -Source 'WIM:D:\My Media\install.wim:6') -join ' ') -eq '/Online /Cleanup-Image /RestoreHealth /English /Source:"WIM:D:\My Media\install.wim:6" /LimitAccess')
 Assert 'Result.json schema version is 1'                          ($ResultSchemaVersion -eq 1)
+Assert 'Loading left $ErrorActionPreference unchanged'            ($preferenceAfter -eq $preferenceBefore)
+Assert 'Loading left strict mode unchanged'                        ($strictAfter -eq $strictBefore)
 
 Write-Host ''
 Write-Host "Administrator rights in this window: $(Test-IsAdministrator) (either answer is fine for this test)."
