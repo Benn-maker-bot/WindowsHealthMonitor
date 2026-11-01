@@ -42,6 +42,14 @@ Assert 'Invoke-WindowsHealthMonitor is loaded'                     ([bool](Get-C
 Assert 'Healthy DISM text is Healthy (the false-positive guard)'  ((Get-DismScanState 'No component store corruption detected.') -eq 'Healthy')
 Assert 'Repair arguments without a source have no /LimitAccess'   (-not ((Get-RestoreHealthArgument) -contains '/LimitAccess'))
 Assert 'A source path with spaces is quoted, with /LimitAccess'   (((Get-RestoreHealthArgument -Source 'WIM:D:\My Media\install.wim:6') -join ' ') -eq '/Online /Cleanup-Image /RestoreHealth /English /Source:"WIM:D:\My Media\install.wim:6" /LimitAccess')
+# Restart detection (2.5.0-dev.3): the decision step takes made-up facts, so no registry is read.
+$restartFacts = @{ CbsRebootPending = $false; WuRebootRequired = $false; PendingXmlExists = $true
+                   PendingXmlWritten = [datetime]'2026-10-01'; LastBoot = [datetime]'2026-10-31'
+                   PendingXmlError = $null; ActiveName = 'PC'; TargetName = 'PC' }
+$restartDecision = Get-PendingRestartDecision -Fact $restartFacts
+Assert 'A stale pending.xml is a note, not a reason to skip'       (@($restartDecision.Reasons).Count -eq 0 -and @($restartDecision.Notes).Count -eq 1)
+$restartFacts.CbsRebootPending = $true
+Assert 'A servicing restart key skips the run'                     (@((Get-PendingRestartDecision -Fact $restartFacts).Reasons).Count -eq 1)
 Assert 'Result.json schema version is 1'                          ($ResultSchemaVersion -eq 1)
 Assert 'Loading left $ErrorActionPreference unchanged'            ($preferenceAfter -eq $preferenceBefore)
 Assert 'Loading left strict mode unchanged'                        ($strictAfter -eq $strictBefore)

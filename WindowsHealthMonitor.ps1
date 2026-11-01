@@ -169,7 +169,7 @@ param(
 #    $env:SystemRoot is normally C:\Windows.
 #  * The lock name starts with "Global\" so that every sign-in session shares one lock:
 #    a scheduled run and a run in your own window cannot overlap.
-$ScriptVersion = '2.5.0-dev.2'
+$ScriptVersion = '2.5.0-dev.4'
 # The layout version of Result.json. Raise it only when a field is renamed, removed or changes
 # meaning, so that a program reading old and new reports can tell them apart.
 $ResultSchemaVersion = 1
@@ -377,7 +377,11 @@ function ConvertFrom-ToolOutput {
       so no text match ever succeeds. This detects the encoding from the bytes themselves,
       then strips progress-bar lines so that the saved files stay readable.
     #>
-    param([byte[]]$Bytes)
+    param(
+        [byte[]]$Bytes,
+        # Keep the progress lines: Get-ToolProgress needs them for the live display.
+        [switch]$KeepProgress
+    )
 
     if ($null -eq $Bytes -or $Bytes.Length -eq 0) { return '' }
 
@@ -415,8 +419,10 @@ function ConvertFrom-ToolOutput {
     #   (\.\d+)?       an optional decimal part, such as ".0"
     # so the first pattern means "a line that contains only something like [==== 12.3% ====]".
     $lines = $text -split "`r`n|`n|`r" | Where-Object {
-        $_ -notmatch '^\s*\[[=\s]*\d+(\.\d+)?%[=\s]*\]\s*$' -and   # DISM progress bar
-        $_ -notmatch '^\s*Verification\s+\d+% complete'              # SFC progress
+        $KeepProgress -or (
+            $_ -notmatch '^\s*\[[=\s]*\d+(\.\d+)?%[=\s]*\]\s*$' -and   # DISM progress bar
+            $_ -notmatch '^\s*Verification\s+\d+% complete'              # SFC progress
+        )
     }
 
     # Each progress update leaves an empty line behind (over 100 for one DISM scan),
@@ -430,6 +436,30 @@ function ConvertFrom-ToolOutput {
         $previousBlank = $isBlank
     }
     return ($clean.ToArray() -join [Environment]::NewLine).Trim()
+}
+
+# Get-ToolProgress - the newest line a tool has printed, and its percentage if it has one.
+# Used only for the live display while DISM or SFC runs; it never affects any verdict.
+#   Only the last 2 KB are decoded, which always holds the latest progress update. The
+#   start is rounded down to an even byte so that UTF-16LE (SFC) stays aligned.
+# Returns $null when there is nothing to show yet.
+function Get-ToolProgress {
+    param([byte[]]$Bytes)
+
+    if ($null -eq $Bytes -or $Bytes.Length -eq 0) { return $null }
+    $start = [Math]::Max(0, $Bytes.Length - 2048)
+    $start -= $start % 2
+    $tail  = New-Object byte[] ($Bytes.Length - $start)
+    [Array]::Copy($Bytes, $start, $tail, 0, $tail.Length)
+
+    $lines = (ConvertFrom-ToolOutput -Bytes $tail -KeepProgress) -split "`r`n|`n|`r" |
+             Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    if (-not $lines) { return $null }
+    $last = (@($lines)[-1]).Trim()
+
+    $percent = -1    # Write-Progress's value for "no percentage"
+    if ($last -match '(\d+(\.\d+)?)\s*%') { $percent = [int][Math]::Min(100, [double]$Matches[1]) }
+    return [pscustomobject]@{ Status = $last; Percent = $percent }
 }
 
 function Format-Duration {
@@ -488,7 +518,8 @@ function Get-RunContext {
 #    CopyToAsync(...)   copies its output into memory IN THE BACKGROUND while it runs. This
 #                       matters: if nobody reads a program's output, its output buffer fills
 #                       up and the program freezes, waiting for space.
-#    WaitForExit(ms)    waits up to the time limit; returns $false if the tool ran over.
+#    WaitForExit(ms)    waits one second at a time, up to the time limit, showing the
+#                       tool's latest progress line with Write-Progress between waits.
 #
 #  If a tool runs over its limit, the script stops it AND the helper processes it started
 #  (DISM starts DismHost.exe), keeps whatever output it had, and the caller reports code 7.
@@ -536,7 +567,35 @@ function Invoke-Tool {
         $outCopy = $process.StandardOutput.BaseStream.CopyToAsync($stdout)
         $errCopy = $process.StandardError.BaseStream.CopyToAsync($stderr)
 
-        if (-not $process.WaitForExit($TimeoutMinutes * 60000)) {
+        # Wait in one-second steps instead of one long wait, so that the newest progress
+        # line can be shown while the tool runs. The background copies keep writing to
+        # $stdout meanwhile; the peek only reads it. GetBuffer() returns the stream's array
+        # without copying, and a read that races with a write can at worst show a slightly
+        # old line, so a failed peek is ignored. The saved output is unaffected.
+        $deadline = $started.AddMinutes($TimeoutMinutes)
+        $exited   = $false
+        while (-not $exited -and (Get-Date) -lt $deadline) {
+            $exited = $process.WaitForExit(1000)
+            try {
+                $buffer = $stdout.GetBuffer()
+                $length = [int][Math]::Min($stdout.Length, $buffer.Length)
+                $peek   = New-Object byte[] $length
+                [Array]::Copy($buffer, $peek, $length)
+                $progress = Get-ToolProgress -Bytes $peek
+                $elapsedText = Format-Duration ((Get-Date) - $started)
+                if ($progress) {
+                    Write-Progress -Activity "$Name ($elapsedText)" -Status $progress.Status -PercentComplete $progress.Percent
+                } else {
+                    Write-Progress -Activity "$Name ($elapsedText)" -Status 'Starting...'
+                }
+            }
+            catch {
+                Write-Verbose "Progress display skipped: $($_.Exception.Message)"
+            }
+        }
+        Write-Progress -Activity $Name -Completed
+
+        if (-not $exited) {
             $timedOut = $true
             Write-Summary "$Name exceeded its $TimeoutMinutes-minute limit. Stopping it and its child processes."
             try {
@@ -673,56 +732,106 @@ function Format-DriveSpace {
     return "$line That is plenty of working space for DISM repairs."
 }
 
-# Get-PendingRestartReason - checks whether Windows is waiting for a restart. DISM and SFC
-# give unreliable results while servicing work is queued, so such a run is skipped (code 6).
+# Restart detection is split into three parts (2.5.0-dev.3), so the decision can be tested
+# without touching the real registry:
+#   Get-PendingRestartFact      COLLECT  - reads the registry, pending.xml and the boot time.
+#   Get-PendingRestartDecision  DECIDE   - a "pure" function: facts in, decision out. It reads
+#                                          nothing and changes nothing, so a test can hand it
+#                                          any made-up set of facts.
+#   Get-PendingRestartReason    COMBINE  - collects, decides, records the notes and returns
+#                                          the blocking reasons. Behaviour is unchanged.
+# DISM and SFC give unreliable results while servicing work is queued, so such a run is
+# skipped (code 6).
+
+# Get-PendingRestartFact - gathers the evidence, without judging it.
 #   Test-Path 'HKLM:\...'  checks whether a registry key exists. HKLM: is a PowerShell
 #                          "drive" for HKEY_LOCAL_MACHINE, so the registry can be browsed
 #                          like folders. These two keys exist only while a restart is due.
 #   WinSxS\pending.xml     lists servicing work queued for the next restart.
 # It deliberately ignores "PendingFileRenameOperations", a registry value that many
 # installers leave behind for good - checking it would skip every run.
-function Get-PendingRestartReason {
-    $reasons = @()
-    if (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending') {
-        $reasons += 'Component Based Servicing reports a pending restart'
+# Returns a hashtable. A value is $null when that thing is absent or could not be read.
+function Get-PendingRestartFact {
+    $fact = @{
+        CbsRebootPending  = Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending'
+        WuRebootRequired  = Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired'
+        PendingXmlExists  = $false
+        PendingXmlWritten = $null
+        LastBoot          = $null
+        PendingXmlError   = $null
+        ActiveName        = $null
+        TargetName        = $null
     }
-    if (Test-Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired') {
-        $reasons += 'Windows Update reports a pending restart'
+
+    $pendingXml = Join-Path $env:SystemRoot 'WinSxS\pending.xml'
+    if (Test-Path -LiteralPath $pendingXml) {
+        $fact.PendingXmlExists = $true
+        try {
+            $fact.LastBoot          = (Get-CimInstance -ClassName Win32_OperatingSystem).LastBootUpTime
+            $fact.PendingXmlWritten = (Get-Item -LiteralPath $pendingXml -Force).LastWriteTime
+        }
+        catch {
+            $fact.PendingXmlError = $_.Exception.Message
+        }
     }
+
+    try {
+        $fact.ActiveName = (Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\ComputerName\ActiveComputerName' -Name ComputerName).ComputerName
+        $fact.TargetName = (Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\ComputerName\ComputerName' -Name ComputerName).ComputerName
+    }
+    catch {
+        # Leaving both names $null tells the decision step to skip the rename check.
+        $fact.ActiveName = $null
+        $fact.TargetName = $null
+        Write-Verbose "Computer-name check skipped: $($_.Exception.Message)"
+    }
+
+    return $fact
+}
+
+# Get-PendingRestartDecision - turns the facts into a decision.
+#   Input:  a hashtable shaped like the one Get-PendingRestartFact returns.
+#   Output: an object with Reasons (each one blocks the run) and Notes (worth reading, but
+#           not blocking).
+function Get-PendingRestartDecision {
+    param([Parameter(Mandatory)][hashtable]$Fact)
+
+    # A generic List grows in place; adding to a plain array (@() +=) copies it every time.
+    $reasons = [System.Collections.Generic.List[string]]::new()
+    $notes   = [System.Collections.Generic.List[string]]::new()
+
+    if ($Fact.CbsRebootPending) { $reasons.Add('Component Based Servicing reports a pending restart') }
+    if ($Fact.WuRebootRequired) { $reasons.Add('Windows Update reports a pending restart') }
 
     # pending.xml written since the last restart means servicing work is genuinely queued.
     # One that survived a restart is stale: blocking on it would skip every run for ever,
     # so record it instead (a stale pending.xml is itself a known cause of repair failures).
-    $pendingXml = Join-Path $env:SystemRoot 'WinSxS\pending.xml'
-    if (Test-Path -LiteralPath $pendingXml) {
-        try {
-            $lastBoot = (Get-CimInstance -ClassName Win32_OperatingSystem).LastBootUpTime
-            $written  = (Get-Item -LiteralPath $pendingXml -Force).LastWriteTime
-            if ($written -gt $lastBoot) {
-                $reasons += 'servicing operations were queued in WinSxS\pending.xml after the last restart'
-            }
-            else {
-                Add-Note ("WinSxS\pending.xml dates from {0:yyyy-MM-dd HH:mm}, before the last restart ({1:yyyy-MM-dd HH:mm}). A pending.xml that survives a restart can stop DISM and SFC from repairing; if repairs fail, this is a likely cause." -f $written, $lastBoot)
-            }
+    if ($Fact.PendingXmlExists) {
+        if ($Fact.PendingXmlError -or $null -eq $Fact.PendingXmlWritten -or $null -eq $Fact.LastBoot) {
+            $why = if ($Fact.PendingXmlError) { $Fact.PendingXmlError } else { 'the dates were not available' }
+            $notes.Add("WinSxS\pending.xml exists, but its age could not be checked: $why")
         }
-        catch {
-            Add-Note "WinSxS\pending.xml exists, but its age could not be checked: $($_.Exception.Message)"
+        elseif ($Fact.PendingXmlWritten -gt $Fact.LastBoot) {
+            $reasons.Add('servicing operations were queued in WinSxS\pending.xml after the last restart')
+        }
+        else {
+            $notes.Add(("WinSxS\pending.xml dates from {0:yyyy-MM-dd HH:mm}, before the last restart ({1:yyyy-MM-dd HH:mm}). A pending.xml that survives a restart can stop DISM and SFC from repairing; if repairs fail, this is a likely cause." -f $Fact.PendingXmlWritten, $Fact.LastBoot))
         }
     }
 
     # A pending computer rename needs a restart but does not affect servicing.
-    try {
-        $activeName = (Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\ComputerName\ActiveComputerName' -Name ComputerName).ComputerName
-        $targetName = (Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\ComputerName\ComputerName' -Name ComputerName).ComputerName
-        if ($activeName -ne $targetName) {
-            Add-Note "A computer rename from '$activeName' to '$targetName' is waiting for a restart. It does not affect DISM or SFC."
-        }
-    }
-    catch {
-        Write-Verbose "Computer-name check skipped: $($_.Exception.Message)"
+    if ($Fact.ActiveName -and $Fact.TargetName -and $Fact.ActiveName -ne $Fact.TargetName) {
+        $notes.Add("A computer rename from '$($Fact.ActiveName)' to '$($Fact.TargetName)' is waiting for a restart. It does not affect DISM or SFC.")
     }
 
-    return $reasons
+    return [pscustomobject]@{ Reasons = $reasons.ToArray(); Notes = $notes.ToArray() }
+}
+
+# Get-PendingRestartReason - collects, decides, records the notes and returns the reasons.
+function Get-PendingRestartReason {
+    $decision = Get-PendingRestartDecision -Fact (Get-PendingRestartFact)
+    foreach ($note in $decision.Notes) { Add-Note $note }
+    return $decision.Reasons
 }
 
 # Export-CbsSrLine - copies SFC's own lines (marked [SR]) from Windows' servicing log,

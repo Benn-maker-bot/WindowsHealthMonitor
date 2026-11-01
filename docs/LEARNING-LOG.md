@@ -42,6 +42,7 @@ Only you can say when something is "comfortable", so that column changes only wh
 | `return` versus `exit` inside a function | The code-10 branch in stage 1 | Introduced |
 | Checking administrator rights in code (`WindowsPrincipal`, `IsInRole`) | `Test-IsAdministrator` | Introduced |
 | A test that can fail: checking a test catches a deliberately broken version | `Test-DotSource.ps1` (Claude broke the guard on a copy; the test failed) | Introduced |
+| VS Code Source Control: Changes vs Staged Changes, reviewing diffs, staging, un-staging, commit messages, and local commits vs pushing | `docs/SOURCE-CONTROL-GUIDE.md` | Introduced |
 
 ## Debugging case studies from this project
 
@@ -51,6 +52,7 @@ Each one is written up in PROJECT-HISTORY.md:
 2. "Result.json could not be written: Argument types do not match" (a PowerShell quirk with `@()`).
 3. Why the reports said 5.1 when your window was 7.6.9 (`powershell.exe` versus `pwsh`).
 4. "Corrupted" scripts that were really pasting damage (HTML in a chat box).
+5. A Source Control commit that appeared stuck because VS Code was waiting for a commit message.
 
 ## Tools used so far
 
@@ -64,6 +66,7 @@ Each one is written up in PROJECT-HISTORY.md:
 
 1. **Stage 0:** Git basics: repository, commit, history, `git diff` (done). Still to practise: undoing a change with `git restore`.
 2. **Stage 1:** dot-sourcing, and separating "define" from "run" (introduced; you will run `Test-DotSource.ps1` yourself).
+   - **Pure functions (1 November 2026, 2.5.0-dev.3):** introduced. Restart detection now has a "collect" step that reads Windows and a "decide" step that only takes facts in and gives a decision out. A pure function is easy to test, because a test can hand it any facts it likes. Also seen: `[System.Collections.Generic.List[string]]`, a list that grows without copying.
 3. **Stage 2:** Pester: `Describe`, `It`, `Should`, `Mock`. Optional: write one test yourself.
 4. **Stage 3:** process trees and exit codes, seen with real Windows programs.
 5. **Stage 5:** Task Scheduler accounts and sessions.

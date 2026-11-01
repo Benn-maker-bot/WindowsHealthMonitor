@@ -66,6 +66,14 @@ Automatically check Windows for component-store corruption using DISM, repair it
 
 - Pasting the script into a chat box converts `<#` to `&lt;#`, `>` to `&gt;` and web addresses into HTML links. Several "corruption" reports came from pasted copies; the files themselves were clean. Never move the script by pasting.
 
+### VS Code commit failed without an accepted message (30 October 2026)
+
+- **Symptom:** the Source Control view showed activity for several minutes without a new commit.
+- **Cause:** `git commit --quiet` invoked VS Code's `git-editor.sh` helper without an accepted message. The Git output recorded a 566,842 ms run followed by "Please supply the message using either -m or -F option." The author name and email were configured; this was not a repository lock or missing identity.
+- **Resolution:** the failed operation created no commit. The 33 staged paths remained in the index, and no index lock remained.
+- **Verification:** checked the Git output, `git status`, staged-path count, `HEAD`, process list and index-lock state.
+- **Prevention:** enter the message in the Source Control message box before selecting Commit; review staged paths, particularly if VS Code staged changes automatically. See `docs/SOURCE-CONTROL-GUIDE.md`.
+
 ## Design decisions
 
 - DISM first, then SFC: repair the master copies before using them to repair the working copies.

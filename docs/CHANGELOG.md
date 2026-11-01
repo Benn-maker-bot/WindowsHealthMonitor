@@ -2,6 +2,29 @@
 
 Newest first. Dates are UK dates.
 
+## 2.5.0-dev.4 (1 November 2026)
+
+DISM and SFC now show their progress while they run. Captured output, saved reports and result codes are unchanged.
+
+- **New:** `Invoke-Tool` waits in one-second steps and, between them, shows the tool's newest line (such as `[==== 32.0% ====]` or `Verification 47% complete.`) and the elapsed time with `Write-Progress`. New function `Get-ToolProgress` decodes the last 2 KB captured so far; `ConvertFrom-ToolOutput` has a new `-KeepProgress` switch for it.
+- **Protected behaviour touched:** rules 3, 8 and 10 (encoding, background capture, time limits). The capture is unchanged; the display only reads a copy of it, and a failed read is ignored.
+- **Tested:** parser check; `Tests\Test-DotSource.ps1` passes; `Get-ToolProgress` on sample DISM (OEM) and SFC (UTF-16LE) bytes; `Invoke-Tool` with `ping.exe` for a normal exit and a time-out.
+- **Still to test on Windows:** one real run, watching the progress display (expected: Healthy, code 0).
+
+## 2.5.0-dev.3 (1 November 2026, addition to stage 1 of PLAN-2.5)
+
+Restart detection is now testable. Which conditions skip a run, and the wording of every note, are unchanged.
+
+- **Changed:** `Get-PendingRestartReason` is split into three functions. `Get-PendingRestartFact` reads the registry, `WinSxS\pending.xml` and the last boot time. `Get-PendingRestartDecision` is a pure function: it takes those facts as a hashtable and returns the blocking reasons and the notes, reading and changing nothing. `Get-PendingRestartReason` joins the two and records the notes, as before.
+- **Why:** idea 2 in `docs/RESEARCH-IDEAS.md`. The decision can now be tested with made-up facts, without touching the real registry, ready for the Pester tests in stage 2.
+- **Tested:** parser check; 8 decision cases with made-up facts (nothing pending, each key, fresh, stale and unreadable pending.xml, rename, unknown names), all as expected and with the same note wording; the 10 simulated scenarios give identical result codes before and after, in both `file` and `dot` modes. `Tests\Test-DotSource.ps1` has two new checks.
+- **Still to test on Windows:** `Test-DotSource.ps1`, and one real run (expected: Healthy, code 0, like the 29 October baseline).
+
+## Documentation update (30 October 2026)
+
+- **New:** `docs/SOURCE-CONTROL-GUIDE.md` explains the VS Code Git Source Control workflow, including review, staging, commit messages, and the project's waiting commit-message editor.
+- **Updated:** the learning log and project history record the Source Control workflow and the investigation of the waiting commit.
+
 ## 2.5.0-dev.1 (29 October 2026, stage 1 of PLAN-2.5)
 
 The script is now testable. What DISM and SFC do, and the result codes, are unchanged.

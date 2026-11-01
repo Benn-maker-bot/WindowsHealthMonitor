@@ -13,7 +13,8 @@
         "parameterless",
         "HKLM",
         "recognisable",
-        "recognise"
+        "recognise",
+        "oneline"
     ],
     "code-runner.executorMap": {
         "powershell": "pwsh -NoProfile -ExecutionPolicy Bypass -File"

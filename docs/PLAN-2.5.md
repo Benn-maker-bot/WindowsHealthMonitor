@@ -1,6 +1,6 @@
 # Windows Health Monitor: plan for version 2.5
 
-Status: **in progress.** Stage 0 (Git) done on 29 October 2026. Stage 1 (testability) done on 29 October 2026: 2.5.0-dev.1, simulated and run on Benn's PC. Stages 2 to 6 not started.
+Status: **in progress.** Stage 0 (Git) done on 29 October 2026. Stage 1 (testability) done on 29 October 2026: 2.5.0-dev.1, simulated and run on Benn's PC. Addition on 1 November 2026: 2.5.0-dev.3 makes restart detection testable (simulated; Windows check still to do). Stages 2 to 6 not started.
 
 ## Where we are now (resume note)
 
@@ -8,6 +8,7 @@ Status: **in progress.** Stage 0 (Git) done on 29 October 2026. Stage 1 (testabi
 - **Known-good baseline:** 29 October 2026 at 11:31, version 2.4.0 in PowerShell 7.6.9. Healthy, result code 0, 2 min 2 s. Every later change is compared against it.
 - **Last real run:** 29 October 2026 at 13:19, version 2.5.0-dev.1 in PowerShell 7.6.9. Healthy, code 0, 2 min 9 s, matching the baseline.
 - **Git:** `4239d2b` (the 2.4.0 baseline), `b325a72` (documents record stage 0), then one commit for stage 1 ("Stage 1: make the script testable (2.5.0-dev.1)").
+- **Latest:** 2.5.0-dev.3 (1 November 2026) splits restart detection into collect and decide steps. Simulated only; run `Tests\Test-DotSource.ps1` and one real run on Windows before committing.
 - **Next action:** stage 2, the Pester tests. It needs no decisions; D1 to D4 are needed only from stage 4 onwards.
 
 ## At a glance
@@ -103,6 +104,8 @@ Done on 29 October 2026 as 2.5.0-dev.1, as described below. Tested: simulations,
   - static checks;
   - all 12 simulated scenarios give the same result codes as 2.4.0;
   - one real healthy run on your PC.
+
+**Addition, 1 November 2026 (2.5.0-dev.3):** from `docs/RESEARCH-IDEAS.md` idea 2, `Get-PendingRestartReason` is split into `Get-PendingRestartFact` (collect), `Get-PendingRestartDecision` (a pure decide step) and `Get-PendingRestartReason` (combine). No change in behaviour. Stage 2 should test `Get-PendingRestartDecision` with made-up facts. The other half of idea 2, warning after several postponed runs, changes behaviour and waits for 2.6.
 
 ### Stage 2. Pester unit and regression tests
 
